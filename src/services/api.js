@@ -1,12 +1,10 @@
 import axios from 'axios';
 
-// Base URL da API — em produção troca pela URL do Render
 const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  // Em produção usa a URL do Render, em desenvolvimento usa localhost
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api',
 });
 
-// Interceptor — adiciona o token JWT em todas as requisições automaticamente
-// Assim não precisa passar o token manualmente em cada chamada
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
