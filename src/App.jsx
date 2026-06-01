@@ -14,6 +14,7 @@ import Perfil   from './pages/Perfil';
 import Navbar from './components/Navbar';
 
 import Admin from './pages/Admin';
+import AdminAnimeForm from './pages/AdminAnimeForm';
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/registro"      element={<Registro />} />
           <Route path="/perfil"        element={<Perfil />}   />
           <Route path="/admin"         element={<Admin />}    />
+          <Route path="/admin/anime/novo" element={<AdminAnimeForm />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
