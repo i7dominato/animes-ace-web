@@ -13,6 +13,8 @@ import Perfil   from './pages/Perfil';
 // Componente de layout (Navbar)
 import Navbar from './components/Navbar';
 
+import Admin from './pages/Admin';
+
 export default function App() {
   return (
     <AuthProvider>
@@ -26,6 +28,7 @@ export default function App() {
           <Route path="/login"         element={<Login />}    />
           <Route path="/registro"      element={<Registro />} />
           <Route path="/perfil"        element={<Perfil />}   />
+          <Route path="/admin"         element={<Admin />}    />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -41,10 +41,10 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, salvarSessao, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  <AuthContext.Provider value={{ user, loading, salvarSessao, logout, isAdmin: user?.isAdmin ?? false }}>
+    {children}
+  </AuthContext.Provider>
+);
 }
 
 // Hook personalizado para usar o contexto facilmente

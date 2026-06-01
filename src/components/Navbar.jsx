@@ -38,6 +38,11 @@ export default function Navbar() {
             {menuAberto && (
               <div style={s.dropdown}>
                 <span style={s.dropdownNome}>{user.nome}</span>
+                {user?.isAdmin && (
+                <Link to="/admin" style={{ ...s.dropdownItem, color: '#f4a261' }} onClick={() => setMenuAberto(false)}>
+                  ⚙ Painel Admin
+                </Link>
+                )}
                 <Link to="/perfil" style={s.dropdownItem} onClick={() => setMenuAberto(false)}>
                   Meu Perfil
                 </Link>
