@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import { useWindowSize } from '../hooks/useWindowSize';
 
 // Função que converte URL do YouTube em URL de embed
 // Ex: youtube.com/watch?v=ABC → youtube.com/embed/ABC
@@ -25,6 +26,7 @@ function getYoutubeEmbed(url) {
 export default function Player() {
   const { id }   = useParams();
   const navigate = useNavigate();
+  const { isMobile } = useWindowSize();
 
   const [episodio,   setEpisodio]   = useState(null);
   const [proximoEp,  setProximoEp]  = useState(null);
@@ -180,8 +182,7 @@ const s = {
   },
 
   // Conteúdo abaixo do player
-  content: { padding: '28px 40px 0', maxWidth: '900px' },
-
+  content: { padding: isMobile ? '20px 20px 0' : '28px 40px 0', maxWidth: '900px' },
   infoWrap: { marginBottom: '28px' },
 
   // Breadcrumb
@@ -230,11 +231,11 @@ const s = {
 
   // Navegação entre episódios
   navEps: {
-    display:       'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap:           '12px',
-    marginBottom:  '24px',
-  },
+  display:             'grid',
+  gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+  gap:                 '12px',
+  marginBottom:        '24px',
+ },
   navBtn: {
     display:      'flex',
     alignItems:   'center',

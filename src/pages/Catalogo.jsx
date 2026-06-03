@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
 import api                     from '../services/api';
+import { useWindowSize } from '../hooks/useWindowSize';
 
 const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror', 'Fantasia', 'Esportes', 'Sci-Fi', 'Mistério'];
 
 export default function Catalogo() {
   const [animes,       setAnimes]       = useState([]);
+  const { isMobile } = useWindowSize();
   const [loading,      setLoading]      = useState(true);
   const [busca,        setBusca]        = useState('');
   const [generoAtivo,  setGeneroAtivo]  = useState('Todos');
@@ -178,6 +180,7 @@ function AnimeCard({ anime, onClick }) {
 const s = {
   page:    { paddingTop: '64px', minHeight: '100vh' },
   loading: { textAlign: 'center', padding: '80px', color: '#888' },
+  section:    { padding: isMobile ? '0 20px 48px' : '0 40px 48px' },
 
   header: {
     padding:      '48px 40px 24px',
@@ -192,10 +195,9 @@ const s = {
   subtitulo: { color: '#888', fontSize: '0.9rem' },
 
   // Busca
-  buscaWrap: {
-    position:     'relative',
-    margin:       '28px 40px 0',
-  },
+  buscaWrap:  { 
+    position: 'relative', 
+    margin: isMobile ? '20px 20px 0' : '28px 40px 0' },
   buscaIcon: {
     position:  'absolute',
     left:      '16px',
@@ -226,13 +228,12 @@ const s = {
   },
 
   // Gêneros
-  generoBar: {
-    display:    'flex',
-    gap:        '10px',
-    padding:    '20px 40px',
-    overflowX:  'auto',
-    scrollbarWidth: 'none',
-  },
+  generoBar:  { 
+    display: 'flex', 
+    gap: '10px', 
+    padding: isMobile ? '16px 20px' : '20px 40px', 
+    overflowX: 'auto', 
+    scrollbarWidth: 'none' },
   generoPill: {
     flexShrink:   0,
     padding:      '8px 20px',
@@ -253,7 +254,7 @@ const s = {
   },
 
   // Resultado
-  resultadoWrap: { padding: '0 40px 16px' },
+  resultadoWrap: { padding: isMobile ? '0 20px 12px' : '0 40px 16px' },
   resultadoTexto: { fontSize: '0.82rem', color: '#888' },
 
   // Vazio
@@ -280,12 +281,13 @@ const s = {
 
   // Grid
   grid: {
-    display:             'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-    gap:                 '20px',
-    padding:             '0 40px 48px',
-  },
-
+  display:             'grid',
+  gridTemplateColumns: isMobile
+    ? 'repeat(2, 1fr)'
+    : 'repeat(auto-fill, minmax(170px, 1fr))',
+  gap:     isMobile ? '12px' : '20px',
+  padding: isMobile ? '0 20px 48px' : '0 40px 48px',
+},
   // Card
   card: {
     background:   '#13131f',

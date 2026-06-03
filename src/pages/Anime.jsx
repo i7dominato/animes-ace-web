@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import { useWindowSize } from '../hooks/useWindowSize';
 
 export default function Anime() {
   const { id }     = useParams();   // Pega o :id da URL
   const navigate   = useNavigate();
   const { user }   = useAuth();
+  const { isMobile } = useWindowSize();
 
   const [anime,      setAnime]      = useState(null);
   const [loading,    setLoading]    = useState(true);
@@ -261,22 +263,23 @@ const s = {
     background: 'rgba(13,13,20,0.4)',
   },
   heroContent: {
-    position:  'relative',
-    zIndex:    2,
-    display:   'flex',
-    gap:       '40px',
-    maxWidth:  '900px',
-  },
+  position:        'relative',
+  zIndex:          2,
+  display:         'flex',
+  flexDirection:   isMobile ? 'column' : 'row',
+  gap:             isMobile ? '20px' : '40px',
+  maxWidth:        '900px',
+},
 
   // Capa
   capa: {
-    flexShrink:   0,
-    width:        '200px',
-    aspectRatio:  '3/4',
-    borderRadius: '12px',
-    overflow:     'hidden',
-    border:       '1px solid #1e1e32',
-  },
+  flexShrink:   0,
+  width:        isMobile ? '120px' : '200px',
+  aspectRatio:  '3/4',
+  borderRadius: '12px',
+  overflow:     'hidden',
+  border:       '1px solid #1e1e32',
+},
   capaImg:         { width: '100%', height: '100%', objectFit: 'cover' },
   capaPlaceholder: {
     width: '100%', height: '100%',
@@ -354,12 +357,13 @@ const s = {
   },
 
   // Abas
-  abas: {
-    display:      'flex',
-    gap:          '4px',
-    padding:      '0 40px',
-    borderBottom: '1px solid #1e1e32',
-    marginTop:    '8px',
+  abas:      { 
+    display: 'flex', 
+    gap: '4px', 
+    padding: isMobile ? '0 20px' : '0 40px', 
+    borderBottom: '1px solid #1e1e32', 
+    marginTop: '8px', 
+    overflowX: 'auto' 
   },
   aba: {
     background:    'transparent',
@@ -380,7 +384,7 @@ const s = {
   },
 
   // Lista
-  listaWrap: { padding: '24px 40px 48px', maxWidth: '800px' },
+  listaWrap: { padding: isMobile ? '16px 20px 48px' : '24px 40px 48px', maxWidth: '800px' },
   vazio:     { color: '#888', padding: '32px 0', textAlign: 'center' },
 
   // Episódios

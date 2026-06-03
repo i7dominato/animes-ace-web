@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
 import api                     from '../services/api';
+import { useWindowSize } from '../hooks/useWindowSize';
 
 export default function Home() {
   const [animes,    setAnimes]    = useState([]);
   const [destaque,  setDestaque]  = useState(null);
   const [loading,   setLoading]   = useState(true);
+  const { isMobile } = useWindowSize();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -135,14 +137,14 @@ const s = {
 
   // Hero
   hero: {
-    position:   'relative',
-    height:     '75vh',
-    display:    'flex',
-    alignItems: 'flex-end',
-    padding:    '0 60px 60px',
-    background: 'linear-gradient(135deg, #0d0d14 0%, #1a0520 50%, #0d0d14 100%)',
-    overflow:   'hidden',
-  },
+  position:   'relative',
+  height:     isMobile ? '60vh' : '75vh',
+  display:    'flex',
+  alignItems: 'flex-end',
+  padding:    isMobile ? '0 20px 40px' : '0 60px 60px',
+  background: 'linear-gradient(135deg, #0d0d14 0%, #1a0520 50%, #0d0d14 100%)',
+  overflow:   'hidden',
+},
   heroOverlay: {
     position:   'absolute',
     bottom: 0, left: 0, right: 0,
@@ -205,13 +207,14 @@ const s = {
   },
 
   // Seção
-  section: { padding: '48px 40px' },
-  sectionHeader: {
-    display:        'flex',
-    alignItems:     'baseline',
-    justifyContent: 'space-between',
-    marginBottom:   '24px',
-  },
+  section: { padding: isMobile ? '32px 20px' : '48px 40px' },
+grid: {
+  display:             'grid',
+  gridTemplateColumns: isMobile
+    ? 'repeat(2, 1fr)'
+    : 'repeat(auto-fill, minmax(170px, 1fr))',
+  gap: isMobile ? '12px' : '20px',
+},
   sectionTitulo: {
     fontFamily:    '"Bebas Neue", sans-serif',
     fontSize:      '1.6rem',
