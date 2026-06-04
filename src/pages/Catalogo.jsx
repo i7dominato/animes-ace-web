@@ -1,28 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
+import { useWindowSize }       from '../hooks/useWindowSize';
 import api                     from '../services/api';
-import { useWindowSize } from '../hooks/useWindowSize';
 
 const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror', 'Fantasia', 'Esportes', 'Sci-Fi', 'Mistério'];
 
 export default function Catalogo() {
   const [animes,       setAnimes]       = useState([]);
-  const { isMobile } = useWindowSize();
   const [loading,      setLoading]      = useState(true);
   const [busca,        setBusca]        = useState('');
   const [generoAtivo,  setGeneroAtivo]  = useState('Todos');
   const [pagina,       setPagina]       = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
-  const navigate = useNavigate();
+  const navigate     = useNavigate();
+  const { isMobile } = useWindowSize();
 
-  // Busca os animes sempre que mudar busca, gênero ou página
   useEffect(() => {
     async function carregar() {
       setLoading(true);
       try {
         const params = new URLSearchParams({ pagina });
-        if (busca)                        params.append('busca',  busca);
-        if (generoAtivo !== 'Todos')      params.append('genero', generoAtivo);
+        if (busca)                   params.append('busca',  busca);
+        if (generoAtivo !== 'Todos') params.append('genero', generoAtivo);
 
         const { data } = await api.get(`/animes?${params}`);
         setAnimes(data.animes);
@@ -36,28 +35,21 @@ export default function Catalogo() {
     carregar();
   }, [busca, generoAtivo, pagina]);
 
-  // Ao trocar filtro, volta para a página 1
-  function trocarGenero(genero) {
-    setGeneroAtivo(genero);
-    setPagina(1);
-  }
+  function trocarGenero(genero) { setGeneroAtivo(genero); setPagina(1); }
+  function handleBusca(e)       { setBusca(e.target.value); setPagina(1); }
 
-  function handleBusca(e) {
-    setBusca(e.target.value);
-    setPagina(1);
-  }
+  const pad = isMobile ? '0 20px' : '0 40px';
 
   return (
     <div style={s.page}>
 
-      {/* ── CABEÇALHO ── */}
-      <div style={s.header}>
+      <div style={{ ...s.header, padding: isMobile ? '32px 20px 20px' : '48px 40px 24px' }}>
         <h1 style={s.titulo}>Catálogo</h1>
         <p style={s.subtitulo}>Explore todos os animes disponíveis</p>
       </div>
 
-      {/* ── BARRA DE BUSCA ── */}
-      <div style={s.buscaWrap}>
+      {/* Busca */}
+      <div style={{ ...s.buscaWrap, margin: isMobile ? '0 20px 0' : '0 40px 0' }}>
         <span style={s.buscaIcon}>🔍</span>
         <input
           style={s.buscaInput}
@@ -71,8 +63,8 @@ export default function Catalogo() {
         )}
       </div>
 
-      {/* ── FILTRO DE GÊNEROS ── */}
-      <div style={s.generoBar}>
+      {/* Gêneros */}
+      <div style={{ ...s.generoBar, padding: isMobile ? '14px 20px' : '20px 40px' }}>
         {GENEROS.map(g => (
           <button
             key={g}
@@ -84,18 +76,18 @@ export default function Catalogo() {
         ))}
       </div>
 
-      {/* ── RESULTADO ── */}
-      <div style={s.resultadoWrap}>
+      {/* Resultado */}
+      <div style={{ padding: isMobile ? '0 20px 12px' : '0 40px 16px' }}>
         <span style={s.resultadoTexto}>
           {loading ? 'Buscando...' : `${animes.length} anime${animes.length !== 1 ? 's' : ''} encontrado${animes.length !== 1 ? 's' : ''}`}
         </span>
       </div>
 
-      {/* ── GRID ── */}
+      {/* Grid */}
       {loading ? (
         <div style={s.loading}>Carregando...</div>
       ) : animes.length === 0 ? (
-        <div style={s.vazio}>
+        <div style={{ ...s.vazio, margin: isMobile ? '0 20px' : '0 40px' }}>
           <p style={{ fontSize: '2rem' }}>🎌</p>
           <p style={{ marginTop: '12px' }}>Nenhum anime encontrado.</p>
           <button style={s.limparFiltros} onClick={() => { setBusca(''); setGeneroAtivo('Todos'); }}>
@@ -103,31 +95,28 @@ export default function Catalogo() {
           </button>
         </div>
       ) : (
-        <div style={s.grid}>
+        <div style={{
+          ...s.grid,
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(170px, 1fr))',
+          gap:     isMobile ? '12px' : '20px',
+          padding: isMobile ? '0 20px 48px' : '0 40px 48px',
+        }}>
           {animes.map(anime => (
             <AnimeCard key={anime.id} anime={anime} onClick={() => navigate(`/anime/${anime.id}`)} />
           ))}
         </div>
       )}
 
-      {/* ── PAGINAÇÃO ── */}
+      {/* Paginação */}
       {totalPaginas > 1 && (
         <div style={s.paginacao}>
-          <button
-            style={{ ...s.pagBtn, ...(pagina === 1 ? s.pagBtnDisabled : {}) }}
-            onClick={() => setPagina(p => p - 1)}
-            disabled={pagina === 1}
-          >
+          <button style={{ ...s.pagBtn, ...(pagina === 1 ? s.pagBtnDisabled : {}) }}
+            onClick={() => setPagina(p => p - 1)} disabled={pagina === 1}>
             ← Anterior
           </button>
-
           <span style={s.pagInfo}>{pagina} / {totalPaginas}</span>
-
-          <button
-            style={{ ...s.pagBtn, ...(pagina === totalPaginas ? s.pagBtnDisabled : {}) }}
-            onClick={() => setPagina(p => p + 1)}
-            disabled={pagina === totalPaginas}
-          >
+          <button style={{ ...s.pagBtn, ...(pagina === totalPaginas ? s.pagBtnDisabled : {}) }}
+            onClick={() => setPagina(p => p + 1)} disabled={pagina === totalPaginas}>
             Próxima →
           </button>
         </div>
@@ -137,10 +126,8 @@ export default function Catalogo() {
   );
 }
 
-// ── CARD DE ANIME ──────────────────────────────────────
 function AnimeCard({ anime, onClick }) {
   const [hover, setHover] = useState(false);
-
   return (
     <div
       style={{ ...s.card, ...(hover ? s.cardHover : {}) }}
@@ -149,20 +136,13 @@ function AnimeCard({ anime, onClick }) {
       onMouseLeave={() => setHover(false)}
     >
       <div style={s.cardThumb}>
-        {anime.capa ? (
-          <img src={anime.capa} alt={anime.titulo} style={s.cardImg} />
-        ) : (
-          <div style={s.cardPlaceholder}>🎌</div>
-        )}
-        {hover && (
-          <div style={s.cardOverlay}>
-            <div style={s.playIcon}>▶</div>
-          </div>
-        )}
+        {anime.capa
+          ? <img src={anime.capa} alt={anime.titulo} style={s.cardImg} />
+          : <div style={s.cardPlaceholder}>🎌</div>
+        }
+        {hover && <div style={s.cardOverlay}><div style={s.playIcon}>▶</div></div>}
         <span style={s.cardEp}>{anime._count?.episodios ?? 0} EPS</span>
-        {anime.status === 'em_exibicao' && (
-          <span style={s.cardBadge}>Em exibição</span>
-        )}
+        {anime.status === 'em_exibicao' && <span style={s.cardBadge}>Exibindo</span>}
       </div>
       <div style={s.cardInfo}>
         <div style={s.cardTitulo}>{anime.titulo}</div>
@@ -176,35 +156,16 @@ function AnimeCard({ anime, onClick }) {
   );
 }
 
-// ── ESTILOS ────────────────────────────────────────────
 const s = {
   page:    { paddingTop: '64px', minHeight: '100vh' },
   loading: { textAlign: 'center', padding: '80px', color: '#888' },
-  section:    { padding: isMobile ? '0 20px 48px' : '0 40px 48px' },
 
-  header: {
-    padding:      '48px 40px 24px',
-    borderBottom: '1px solid #1e1e32',
-  },
-  titulo: {
-    fontFamily:    '"Bebas Neue", sans-serif',
-    fontSize:      '2.5rem',
-    letterSpacing: '3px',
-    marginBottom:  '6px',
-  },
-  subtitulo: { color: '#888', fontSize: '0.9rem' },
+  header:    { borderBottom: '1px solid #1e1e32' },
+  titulo:    { fontFamily: '"Bebas Neue", sans-serif', fontSize: '2.5rem', letterSpacing: '3px', marginBottom: '6px' },
+  subtitulo: { color: '#888', fontSize: '0.9rem', marginBottom: '0' },
 
-  // Busca
-  buscaWrap:  { 
-    position: 'relative', 
-    margin: isMobile ? '20px 20px 0' : '28px 40px 0' },
-  buscaIcon: {
-    position:  'absolute',
-    left:      '16px',
-    top:       '50%',
-    transform: 'translateY(-50%)',
-    fontSize:  '1rem',
-  },
+  buscaWrap: { position: 'relative', marginTop: '20px' },
+  buscaIcon: { position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '1rem' },
   buscaInput: {
     width:        '100%',
     padding:      '14px 48px',
@@ -225,15 +186,10 @@ const s = {
     border:     'none',
     color:      '#888',
     fontSize:   '1rem',
+    cursor:     'pointer',
   },
 
-  // Gêneros
-  generoBar:  { 
-    display: 'flex', 
-    gap: '10px', 
-    padding: isMobile ? '16px 20px' : '20px 40px', 
-    overflowX: 'auto', 
-    scrollbarWidth: 'none' },
+  generoBar: { display: 'flex', gap: '10px', overflowX: 'auto', scrollbarWidth: 'none' },
   generoPill: {
     flexShrink:   0,
     padding:      '8px 20px',
@@ -245,24 +201,16 @@ const s = {
     fontWeight:   700,
     fontFamily:   'inherit',
     whiteSpace:   'nowrap',
-    transition:   'all 0.2s',
+    cursor:       'pointer',
   },
-  generoPillAtivo: {
-    background:  '#e63946',
-    borderColor: '#e63946',
-    color:       '#fff',
-  },
+  generoPillAtivo: { background: '#e63946', borderColor: '#e63946', color: '#fff' },
 
-  // Resultado
-  resultadoWrap: { padding: isMobile ? '0 20px 12px' : '0 40px 16px' },
   resultadoTexto: { fontSize: '0.82rem', color: '#888' },
 
-  // Vazio
   vazio: {
     textAlign:    'center',
     padding:      '60px 20px',
     color:        '#f0f0f0',
-    margin:       '0 40px',
     background:   '#13131f',
     borderRadius: '12px',
     border:       '1px solid #1e1e32',
@@ -277,18 +225,11 @@ const s = {
     fontFamily:   'inherit',
     fontWeight:   700,
     fontSize:     '0.85rem',
+    cursor:       'pointer',
   },
 
-  // Grid
-  grid: {
-  display:             'grid',
-  gridTemplateColumns: isMobile
-    ? 'repeat(2, 1fr)'
-    : 'repeat(auto-fill, minmax(170px, 1fr))',
-  gap:     isMobile ? '12px' : '20px',
-  padding: isMobile ? '0 20px 48px' : '0 40px 48px',
-},
-  // Card
+  grid: { display: 'grid' },
+
   card: {
     background:   '#13131f',
     borderRadius: '10px',
@@ -297,103 +238,43 @@ const s = {
     cursor:       'pointer',
     transition:   'transform 0.25s, border-color 0.25s, box-shadow 0.25s',
   },
-  cardHover: {
-    transform:   'translateY(-6px) scale(1.02)',
-    borderColor: '#e63946',
-    boxShadow:   '0 12px 40px rgba(230,57,70,0.2)',
-  },
-  cardThumb: {
-    position:    'relative',
-    aspectRatio: '3/4',
-    overflow:    'hidden',
-  },
-  cardImg: { width: '100%', height: '100%', objectFit: 'cover' },
+  cardHover: { transform: 'translateY(-6px) scale(1.02)', borderColor: '#e63946', boxShadow: '0 12px 40px rgba(230,57,70,0.2)' },
+  cardThumb: { position: 'relative', aspectRatio: '3/4', overflow: 'hidden' },
+  cardImg:   { width: '100%', height: '100%', objectFit: 'cover' },
   cardPlaceholder: {
     width: '100%', height: '100%',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    fontSize:       '3rem',
-    background:     'linear-gradient(135deg, #1a1a2e, #0d0d14)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '3rem', background: 'linear-gradient(135deg, #1a1a2e, #0d0d14)',
   },
   cardOverlay: {
-    position:       'absolute',
-    inset:          0,
-    background:     'rgba(0,0,0,0.5)',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
+    position: 'absolute', inset: 0,
+    background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   playIcon: {
-    width:          '48px',
-    height:         '48px',
-    background:     '#e63946',
-    borderRadius:   '50%',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    fontSize:       '1.1rem',
-    color:          '#fff',
+    width: '48px', height: '48px', background: '#e63946', borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', color: '#fff',
   },
   cardEp: {
-    position:     'absolute',
-    top:          '8px',
-    right:        '8px',
-    background:   'rgba(0,0,0,0.75)',
-    color:        '#f4a261',
-    fontSize:     '0.65rem',
-    fontWeight:   800,
-    padding:      '3px 7px',
-    borderRadius: '4px',
+    position: 'absolute', top: '8px', right: '8px',
+    background: 'rgba(0,0,0,0.75)', color: '#f4a261',
+    fontSize: '0.65rem', fontWeight: 800, padding: '3px 7px', borderRadius: '4px',
   },
   cardBadge: {
-    position:     'absolute',
-    top:          '8px',
-    left:         '8px',
-    background:   '#52b788',
-    color:        '#fff',
-    fontSize:     '0.6rem',
-    fontWeight:   900,
-    padding:      '3px 7px',
-    borderRadius: '4px',
+    position: 'absolute', top: '8px', left: '8px',
+    background: '#52b788', color: '#fff',
+    fontSize: '0.6rem', fontWeight: 900, padding: '3px 7px', borderRadius: '4px',
   },
   cardInfo:   { padding: '12px' },
-  cardTitulo: {
-    fontWeight:   800,
-    fontSize:     '0.88rem',
-    marginBottom: '4px',
-    whiteSpace:   'nowrap',
-    overflow:     'hidden',
-    textOverflow: 'ellipsis',
-  },
-  cardSub: {
-    display:        'flex',
-    justifyContent: 'space-between',
-    fontSize:       '0.75rem',
-    color:          '#888',
-    marginBottom:   '2px',
-  },
-  cardNota: { color: '#f4a261', fontWeight: 700 },
-  cardAno:  { fontSize: '0.72rem', color: '#555' },
+  cardTitulo: { fontWeight: 800, fontSize: '0.88rem', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  cardSub:    { display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#888', marginBottom: '2px' },
+  cardNota:   { color: '#f4a261', fontWeight: 700 },
+  cardAno:    { fontSize: '0.72rem', color: '#555' },
 
-  // Paginação
-  paginacao: {
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            '20px',
-    padding:        '32px 40px 48px',
-  },
+  paginacao: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '20px', padding: '32px 40px 48px' },
   pagBtn: {
-    background:   '#13131f',
-    border:       '1px solid #1e1e32',
-    color:        '#f0f0f0',
-    padding:      '10px 24px',
-    borderRadius: '8px',
-    fontFamily:   'inherit',
-    fontWeight:   700,
-    fontSize:     '0.88rem',
+    background: '#13131f', border: '1px solid #1e1e32', color: '#f0f0f0',
+    padding: '10px 24px', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer',
   },
   pagBtnDisabled: { opacity: 0.3, cursor: 'not-allowed' },
-  pagInfo: { color: '#888', fontSize: '0.88rem' },
+  pagInfo:        { color: '#888', fontSize: '0.88rem' },
 };

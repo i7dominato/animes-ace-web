@@ -1,21 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
+import { useWindowSize }       from '../hooks/useWindowSize';
 import api                     from '../services/api';
-import { useWindowSize } from '../hooks/useWindowSize';
 
 export default function Home() {
-  const [animes,    setAnimes]    = useState([]);
-  const [destaque,  setDestaque]  = useState(null);
-  const [loading,   setLoading]   = useState(true);
+  const [animes,   setAnimes]   = useState([]);
+  const [destaque, setDestaque] = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const navigate   = useNavigate();
   const { isMobile } = useWindowSize();
-  const navigate = useNavigate();
 
   useEffect(() => {
     async function carregar() {
       try {
         const { data } = await api.get('/animes?pagina=1');
         setAnimes(data.animes);
-        // O primeiro anime vira o destaque do hero
         if (data.animes.length > 0) setDestaque(data.animes[0]);
       } catch (err) {
         console.error(err);
@@ -33,15 +32,24 @@ export default function Home() {
 
       {/* ── HERO ── */}
       {destaque && (
-        <div style={s.hero}>
+        <div style={{
+          ...s.hero,
+          height:  isMobile ? '60vh' : '75vh',
+          padding: isMobile ? '0 20px 40px' : '0 60px 60px',
+        }}>
           <div style={s.heroOverlay} />
           <div style={s.heroContent}>
             <span style={s.heroBadge}>Em Destaque</span>
-            <h1 style={s.heroTitulo}>{destaque.titulo}</h1>
+            <h1 style={{
+              ...s.heroTitulo,
+              fontSize: isMobile ? '2.5rem' : 'clamp(2.5rem, 6vw, 5rem)',
+            }}>
+              {destaque.titulo}
+            </h1>
             <div style={s.heroMeta}>
               <span style={s.heroNota}>★ {destaque.nota.toFixed(1)}</span>
               <span style={s.heroDot}>•</span>
-              <span>{destaque.generos.join(', ')}</span>
+              <span>{destaque.generos.slice(0, isMobile ? 1 : 3).join(', ')}</span>
               <span style={s.heroDot}>•</span>
               <span>{destaque.ano}</span>
             </div>
@@ -49,16 +57,18 @@ export default function Home() {
               <button style={s.btnPrimario} onClick={() => navigate(`/anime/${destaque.id}`)}>
                 ▶ Assistir Agora
               </button>
-              <button style={s.btnSecundario} onClick={() => navigate(`/anime/${destaque.id}`)}>
-                + Detalhes
-              </button>
+              {!isMobile && (
+                <button style={s.btnSecundario} onClick={() => navigate(`/anime/${destaque.id}`)}>
+                  + Detalhes
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* ── SEÇÃO DE ANIMES ── */}
-      <section style={s.section}>
+      <section style={{ ...s.section, padding: isMobile ? '32px 20px' : '48px 40px' }}>
         <div style={s.sectionHeader}>
           <h2 style={s.sectionTitulo}>Todos os Animes</h2>
           <button style={s.verTodos} onClick={() => navigate('/catalogo')}>
@@ -70,11 +80,15 @@ export default function Home() {
           <div style={s.vazio}>
             <p>Nenhum anime cadastrado ainda.</p>
             <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '8px' }}>
-              Use a API para adicionar animes pelo Insomnia.
+              Use o painel admin para adicionar animes.
             </p>
           </div>
         ) : (
-          <div style={s.grid}>
+          <div style={{
+            ...s.grid,
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(170px, 1fr))',
+            gap: isMobile ? '12px' : '20px',
+          }}>
             {animes.map(anime => (
               <AnimeCard key={anime.id} anime={anime} onClick={() => navigate(`/anime/${anime.id}`)} />
             ))}
@@ -86,7 +100,6 @@ export default function Home() {
   );
 }
 
-// ── CARD DE ANIME ──────────────────────────────────────
 function AnimeCard({ anime, onClick }) {
   const [hover, setHover] = useState(false);
 
@@ -97,28 +110,19 @@ function AnimeCard({ anime, onClick }) {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      {/* Capa ou placeholder */}
       <div style={s.cardThumb}>
         {anime.capa ? (
           <img src={anime.capa} alt={anime.titulo} style={s.cardImg} />
         ) : (
           <div style={s.cardPlaceholder}>🎌</div>
         )}
-
-        {/* Overlay de play ao hover */}
         {hover && (
           <div style={s.cardOverlay}>
             <div style={s.playIcon}>▶</div>
           </div>
         )}
-
-        {/* Badge de episódios */}
-        <span style={s.cardEp}>
-          {anime._count?.episodios ?? 0} EPS
-        </span>
+        <span style={s.cardEp}>{anime._count?.episodios ?? 0} EPS</span>
       </div>
-
-      {/* Info do card */}
       <div style={s.cardInfo}>
         <div style={s.cardTitulo}>{anime.titulo}</div>
         <div style={s.cardSub}>
@@ -130,32 +134,24 @@ function AnimeCard({ anime, onClick }) {
   );
 }
 
-// ── ESTILOS ────────────────────────────────────────────
 const s = {
   page:    { paddingTop: '64px' },
   loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#888' },
 
-  // Hero
   hero: {
-  position:   'relative',
-  height:     isMobile ? '60vh' : '75vh',
-  display:    'flex',
-  alignItems: 'flex-end',
-  padding:    isMobile ? '0 20px 40px' : '0 60px 60px',
-  background: 'linear-gradient(135deg, #0d0d14 0%, #1a0520 50%, #0d0d14 100%)',
-  overflow:   'hidden',
-},
+    position:   'relative',
+    display:    'flex',
+    alignItems: 'flex-end',
+    background: 'linear-gradient(135deg, #0d0d14 0%, #1a0520 50%, #0d0d14 100%)',
+    overflow:   'hidden',
+  },
   heroOverlay: {
     position:   'absolute',
     bottom: 0, left: 0, right: 0,
     height:     '60%',
     background: 'linear-gradient(to top, #0d0d14 0%, transparent 100%)',
   },
-  heroContent: {
-    position:  'relative',
-    zIndex:    2,
-    maxWidth:  '600px',
-  },
+  heroContent: { position: 'relative', zIndex: 2, maxWidth: '600px' },
   heroBadge: {
     display:       'inline-block',
     background:    '#e63946',
@@ -170,21 +166,21 @@ const s = {
   },
   heroTitulo: {
     fontFamily:    '"Bebas Neue", sans-serif',
-    fontSize:      'clamp(2.5rem, 6vw, 5rem)',
     letterSpacing: '3px',
     lineHeight:    1,
     marginBottom:  '12px',
   },
   heroMeta: {
-    display:     'flex',
-    alignItems:  'center',
-    gap:         '12px',
-    fontSize:    '0.85rem',
-    color:       '#888',
+    display:      'flex',
+    alignItems:   'center',
+    gap:          '12px',
+    fontSize:     '0.85rem',
+    color:        '#888',
     marginBottom: '24px',
+    flexWrap:     'wrap',
   },
-  heroNota:  { color: '#f4a261', fontWeight: 900 },
-  heroDot:   { color: '#e63946' },
+  heroNota: { color: '#f4a261', fontWeight: 900 },
+  heroDot:  { color: '#e63946' },
   heroAcoes: { display: 'flex', gap: '12px' },
 
   btnPrimario: {
@@ -195,6 +191,8 @@ const s = {
     borderRadius: '8px',
     fontWeight:   800,
     fontSize:     '0.95rem',
+    cursor:       'pointer',
+    fontFamily:   'inherit',
   },
   btnSecundario: {
     background:   'rgba(255,255,255,0.08)',
@@ -204,47 +202,45 @@ const s = {
     borderRadius: '8px',
     fontWeight:   700,
     fontSize:     '0.95rem',
+    cursor:       'pointer',
+    fontFamily:   'inherit',
   },
 
-  // Seção
-  section: { padding: isMobile ? '32px 20px' : '48px 40px' },
-grid: {
-  display:             'grid',
-  gridTemplateColumns: isMobile
-    ? 'repeat(2, 1fr)'
-    : 'repeat(auto-fill, minmax(170px, 1fr))',
-  gap: isMobile ? '12px' : '20px',
-},
+  section: { },
+  sectionHeader: {
+    display:        'flex',
+    alignItems:     'baseline',
+    justifyContent: 'space-between',
+    marginBottom:   '24px',
+  },
   sectionTitulo: {
     fontFamily:    '"Bebas Neue", sans-serif',
     fontSize:      '1.6rem',
     letterSpacing: '2px',
   },
   verTodos: {
-    background:  'transparent',
-    border:      'none',
-    color:       '#e63946',
-    fontWeight:  700,
-    fontSize:    '0.85rem',
+    background: 'transparent',
+    border:     'none',
+    color:      '#e63946',
+    fontWeight: 700,
+    fontSize:   '0.85rem',
+    cursor:     'pointer',
+    fontFamily: 'inherit',
   },
 
   vazio: {
-    textAlign:  'center',
-    padding:    '60px 20px',
-    color:      '#f0f0f0',
-    background: '#13131f',
+    textAlign:    'center',
+    padding:      '60px 20px',
+    color:        '#f0f0f0',
+    background:   '#13131f',
     borderRadius: '12px',
-    border:     '1px solid #1e1e32',
+    border:       '1px solid #1e1e32',
   },
 
-  // Grid
   grid: {
-    display:             'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-    gap:                 '20px',
+    display: 'grid',
   },
 
-  // Card
   card: {
     background:   '#13131f',
     borderRadius: '10px',
@@ -252,22 +248,18 @@ grid: {
     border:       '1px solid #1e1e32',
     cursor:       'pointer',
     transition:   'transform 0.25s, border-color 0.25s, box-shadow 0.25s',
-    position:     'relative',
   },
   cardHover: {
-    transform:    'translateY(-6px) scale(1.02)',
-    borderColor:  '#e63946',
-    boxShadow:    '0 12px 40px rgba(230,57,70,0.2)',
+    transform:   'translateY(-6px) scale(1.02)',
+    borderColor: '#e63946',
+    boxShadow:   '0 12px 40px rgba(230,57,70,0.2)',
   },
   cardThumb: {
     position:    'relative',
     aspectRatio: '3/4',
     overflow:    'hidden',
   },
-  cardImg: {
-    width: '100%', height: '100%',
-    objectFit: 'cover',
-  },
+  cardImg:         { width: '100%', height: '100%', objectFit: 'cover' },
   cardPlaceholder: {
     width: '100%', height: '100%',
     display:        'flex',
@@ -296,15 +288,15 @@ grid: {
     color:          '#fff',
   },
   cardEp: {
-    position:      'absolute',
-    top:           '8px',
-    right:         '8px',
-    background:    'rgba(0,0,0,0.75)',
-    color:         '#f4a261',
-    fontSize:      '0.65rem',
-    fontWeight:    800,
-    padding:       '3px 7px',
-    borderRadius:  '4px',
+    position:     'absolute',
+    top:          '8px',
+    right:        '8px',
+    background:   'rgba(0,0,0,0.75)',
+    color:        '#f4a261',
+    fontSize:     '0.65rem',
+    fontWeight:   800,
+    padding:      '3px 7px',
+    borderRadius: '4px',
   },
   cardInfo:   { padding: '12px' },
   cardTitulo: {
@@ -322,11 +314,4 @@ grid: {
     color:          '#888',
   },
   cardNota: { color: '#f4a261', fontWeight: 700 },
-  link: {
-  color:          '#888',
-  fontWeight:     700,
-  fontSize:       '0.9rem',
-  transition:     'color 0.2s',
-  display:        'block',  //← adicione essa linha
-},
 };
