@@ -31,6 +31,7 @@ export default function App() {
           <Route path="/perfil"        element={<Perfil />}   />
           <Route path="/admin"         element={<Admin />}    />
           <Route path="/admin/anime/novo" element={<AdminAnimeForm />} />
+          <Route path="/admin/anime/:id/editar" element={<AdminAnimeForm />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

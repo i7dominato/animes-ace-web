@@ -175,10 +175,10 @@ export default function Admin() {
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             style={s.btnEditar}
-                            onClick={() => navigate(`/anime/${anime.id}`)}
-                          >
-                            Ver
-                          </button>
+                           onClick={() => navigate(`/admin/anime/${anime.id}/editar`)}
+                         >
+                           Editar
+                         </button>
                           <button
                             style={s.btnDeletar}
                             onClick={() => deletarAnime(anime.id, anime.titulo)}
