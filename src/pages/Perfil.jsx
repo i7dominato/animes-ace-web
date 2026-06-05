@@ -22,6 +22,7 @@ export default function Perfil() {
   const [lista,      setLista]      = useState([]);
   const [abaAtiva,   setAbaAtiva]   = useState('todos');
   const [loading,    setLoading]    = useState(true);
+  const [continuando, setContinuando] = useState([]);
 
   // Redireciona para login se não estiver logado
   useEffect(() => {
@@ -39,6 +40,9 @@ export default function Perfil() {
     }
     carregarLista();
   }, [user]);
+
+const prog = await api.get('/progresso/continuar');
+setContinuando(prog.data);
 
   async function removerDaLista(itemId) {
     try {
@@ -102,7 +106,7 @@ export default function Perfil() {
 
       {/* ── ABAS ── */}
       <div style={s.abas}>
-        {['todos', 'assistindo', 'quero_ver', 'concluido', 'favoritos'].map(aba => (
+        {['todos', 'assistindo', 'quero_ver', 'concluido', 'favoritos', 'continuando'].map(aba => (
           <button
             key={aba}
             style={{ ...s.aba, ...(abaAtiva === aba ? s.abaAtiva : {}) }}
@@ -113,6 +117,7 @@ export default function Perfil() {
             {aba === 'quero_ver'  && `Quero ver (${lista.filter(i => i.status === 'quero_ver').length})`}
             {aba === 'concluido'  && `Concluídos (${lista.filter(i => i.status === 'concluido').length})`}
             {aba === 'favoritos'  && `★ Favoritos (${lista.filter(i => i.favoritado).length})`}
+            {aba === 'continuando' && `▶ Continuando (${continuando.length})`}
           </button>
         ))}
       </div>
@@ -176,6 +181,39 @@ export default function Perfil() {
                     >
                       ✕
                     </button>
+                    {abaAtiva === 'continuando' && (
+  <div style={s.grid}>
+    {continuando.length === 0 ? (
+      <div style={s.vazio}>
+        <p style={{ fontSize: '2rem', marginBottom: '12px' }}>▶</p>
+        <p>Nenhum episódio em andamento.</p>
+      </div>
+    ) : (
+      continuando.map(prog => (
+        <div
+          key={prog.id}
+          style={s.card}
+          onClick={() => navigate(`/assistir/${prog.episodio.id}`)}
+        >
+          <div style={s.cardThumb}>
+            {prog.anime.capa
+              ? <img src={prog.anime.capa} alt={prog.anime.titulo} style={s.cardImg} />
+              : <div style={s.cardPlaceholder}>🎌</div>
+            }
+            {/* Barra de progresso */}
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#1e1e32' }}>
+              <div style={{ height: '100%', background: '#e63946', width: `${Math.min(((prog.segundos / ((prog.episodio.duracao ?? 24) * 60)) * 100), 100)}%` }} />
+            </div>
+          </div>
+          <div style={s.cardInfo}>
+            <div style={s.cardTitulo}>{prog.anime.titulo}</div>
+            <div style={s.cardAno}>EP {prog.episodio.numero} — {prog.episodio.titulo}</div>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+)}
                   </div>
                 </div>
 
