@@ -38,11 +38,15 @@ export default function Perfil() {
         setLoading(false);
       }
     }
-    carregarLista();
-  }, [user]);
+    
+    async function carregarContinuando() {
+    const prog = await api.get('/progresso/continuar');
+    setContinuando(prog.data);
+  }
 
-const prog = await api.get('/progresso/continuar');
-setContinuando(prog.data);
+  carregarLista();
+  carregarContinuando();
+  }, [user]);
 
   async function removerDaLista(itemId) {
     try {
