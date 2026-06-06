@@ -14,7 +14,7 @@ function getYoutubeEmbed(url, segundos = 0) {
     const match = url.match(regex);
     if (match) {
       const start = segundos > 10 ? `&start=${Math.floor(segundos)}` : '';
-      return `https://www.youtube.com/embed/${match[1]}?autoplay=1&rel=0${start}`;
+      return `https://www.youtube.com/embed/${match[1]}?rel=0${start}`;
     }
   }
   return url;
