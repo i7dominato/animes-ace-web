@@ -1,30 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
 import { useWindowSize }       from '../hooks/useWindowSize';
+import { useAuth }             from '../context/AuthContext';
 import api                     from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
-  const [animes,   setAnimes]   = useState([]);
-  const [destaque, setDestaque] = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const navigate   = useNavigate();
-  const { isMobile } = useWindowSize();
-  const { user }              = useAuth();
+  const [animes,      setAnimes]      = useState([]);
+  const [destaque,    setDestaque]    = useState(null);
+  const [loading,     setLoading]     = useState(true);
   const [continuando, setContinuando] = useState([]);
-
-useEffect(() => {
-  if (!user) return;
-  async function carregarContinuando() {
-    try {
-      const { data } = await api.get('/progresso/continuar');
-      setContinuando(data);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-  carregarContinuando();
-}, [user]);
+  const navigate     = useNavigate();
+  const { isMobile } = useWindowSize();
+  const { user }     = useAuth();
 
   useEffect(() => {
     async function carregar() {
@@ -40,6 +27,19 @@ useEffect(() => {
     }
     carregar();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    async function carregarContinuando() {
+      try {
+        const { data } = await api.get('/progresso/continuar');
+        setContinuando(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    carregarContinuando();
+  }, [user]);
 
   if (loading) return <div style={s.loading}>Carregando...</div>;
 
@@ -83,50 +83,49 @@ useEffect(() => {
         </div>
       )}
 
-{/* ── CONTINUAR ASSISTINDO ── */}
-{user && continuando.length > 0 && (
-  <section style={{ ...s.section, padding: isMobile ? '24px 20px 0' : '32px 40px 0' }}>
-    <div style={s.sectionHeader}>
-      <h2 style={s.sectionTitulo}>Continuar Assistindo</h2>
-    </div>
-    <div style={s.continuandoGrid}>
-      {continuando.map(prog => {
-        const duracaoTotal  = (prog.episodio.duracao ?? 24) * 60;
-        const porcentagem   = Math.min((prog.segundos / duracaoTotal) * 100, 100);
-        return (
-          <div
-            key={prog.id}
-            style={s.continuandoCard}
-            onClick={() => navigate(`/assistir/${prog.episodio.id}`)}
-          >
-            {/* Capa */}
-            <div style={s.continuandoThumb}>
-              {prog.anime.capa
-                ? <img src={prog.anime.capa} alt={prog.anime.titulo} style={s.continuandoImg} />
-                : <div style={s.continuandoPlaceholder}>🎌</div>
-              }
-              {/* Barra de progresso sobreposta */}
-              <div style={s.continuandoBarWrap}>
-                <div style={{ ...s.continuandoBar, width: `${porcentagem}%` }} />
-              </div>
-              {/* Botão de play */}
-              <div style={s.continuandoPlay}>▶</div>
-            </div>
-
-            {/* Info */}
-            <div style={s.continuandoInfo}>
-              <div style={s.continuandoAnime}>{prog.anime.titulo}</div>
-              <div style={s.continuandoEp}>EP {prog.episodio.numero} — {prog.episodio.titulo}</div>
-            </div>
+      {/* ── CONTINUAR ASSISTINDO ── */}
+      {user && continuando.length > 0 && (
+        <section style={{ padding: isMobile ? '24px 20px 0' : '32px 40px 0' }}>
+          <div style={s.sectionHeader}>
+            <h2 style={s.sectionTitulo}>Continuar Assistindo</h2>
           </div>
-        );
-      })}
-    </div>
-  </section>
-)}
+          <div style={{
+            display:             'grid',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap:                 isMobile ? '12px' : '16px',
+          }}>
+            {continuando.map(prog => {
+              const duracaoTotal = (prog.episodio.duracao ?? 24) * 60;
+              const porcentagem  = Math.min((prog.segundos / duracaoTotal) * 100, 100);
+              return (
+                <div
+                  key={prog.id}
+                  style={s.continuandoCard}
+                  onClick={() => navigate(`/assistir/${prog.episodio.id}`)}
+                >
+                  <div style={s.continuandoThumb}>
+                    {prog.anime.capa
+                      ? <img src={prog.anime.capa} alt={prog.anime.titulo} style={s.continuandoImg} />
+                      : <div style={s.continuandoPlaceholder}>🎌</div>
+                    }
+                    <div style={s.continuandoBarWrap}>
+                      <div style={{ ...s.continuandoBar, width: `${porcentagem}%` }} />
+                    </div>
+                    <div style={s.continuandoPlay}>▶</div>
+                  </div>
+                  <div style={s.continuandoInfo}>
+                    <div style={s.continuandoAnime}>{prog.anime.titulo}</div>
+                    <div style={s.continuandoEp}>EP {prog.episodio.numero} — {prog.episodio.titulo}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-      {/* ── SEÇÃO DE ANIMES ── */}
-      <section style={{ ...s.section, padding: isMobile ? '32px 20px' : '48px 40px' }}>
+      {/* ── TODOS OS ANIMES ── */}
+      <section style={{ padding: isMobile ? '32px 20px' : '48px 40px' }}>
         <div style={s.sectionHeader}>
           <h2 style={s.sectionTitulo}>Todos os Animes</h2>
           <button style={s.verTodos} onClick={() => navigate('/catalogo')}>
@@ -143,9 +142,9 @@ useEffect(() => {
           </div>
         ) : (
           <div style={{
-            ...s.grid,
+            display:             'grid',
             gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(170px, 1fr))',
-            gap: isMobile ? '12px' : '20px',
+            gap:                 isMobile ? '12px' : '20px',
           }}>
             {animes.map(anime => (
               <AnimeCard key={anime.id} anime={anime} onClick={() => navigate(`/anime/${anime.id}`)} />
@@ -160,7 +159,6 @@ useEffect(() => {
 
 function AnimeCard({ anime, onClick }) {
   const [hover, setHover] = useState(false);
-
   return (
     <div
       style={{ ...s.card, ...(hover ? s.cardHover : {}) }}
@@ -169,11 +167,10 @@ function AnimeCard({ anime, onClick }) {
       onMouseLeave={() => setHover(false)}
     >
       <div style={s.cardThumb}>
-        {anime.capa ? (
-          <img src={anime.capa} alt={anime.titulo} style={s.cardImg} />
-        ) : (
-          <div style={s.cardPlaceholder}>🎌</div>
-        )}
+        {anime.capa
+          ? <img src={anime.capa} alt={anime.titulo} style={s.cardImg} />
+          : <div style={s.cardPlaceholder}>🎌</div>
+        }
         {hover && (
           <div style={s.cardOverlay}>
             <div style={s.playIcon}>▶</div>
@@ -192,7 +189,9 @@ function AnimeCard({ anime, onClick }) {
   );
 }
 
-const s =(isMobile) => ({
+// Objeto de estilos FORA do componente — sem usar isMobile
+// Estilos que dependem de isMobile são aplicados inline no JSX
+const s = {
   page:    { paddingTop: '64px' },
   loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#888' },
 
@@ -209,7 +208,7 @@ const s =(isMobile) => ({
     height:     '60%',
     background: 'linear-gradient(to top, #0d0d14 0%, transparent 100%)',
   },
-  heroContent: { position: 'relative', zIndex: 2, maxWidth: '600px' },
+  heroContent:  { position: 'relative', zIndex: 2, maxWidth: '600px' },
   heroBadge: {
     display:       'inline-block',
     background:    '#e63946',
@@ -227,6 +226,7 @@ const s =(isMobile) => ({
     letterSpacing: '3px',
     lineHeight:    1,
     marginBottom:  '12px',
+    color:         '#f0f0f0',
   },
   heroMeta: {
     display:      'flex',
@@ -239,7 +239,7 @@ const s =(isMobile) => ({
   },
   heroNota: { color: '#f4a261', fontWeight: 900 },
   heroDot:  { color: '#e63946' },
-  heroAcoes: { display: 'flex', gap: '12px' },
+  heroAcoes: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
 
   btnPrimario: {
     background:   '#e63946',
@@ -250,7 +250,7 @@ const s =(isMobile) => ({
     fontWeight:   800,
     fontSize:     '0.95rem',
     cursor:       'pointer',
-    fontFamily:   'inherit',
+    fontFamily:   'Nunito, sans-serif',
   },
   btnSecundario: {
     background:   'rgba(255,255,255,0.08)',
@@ -261,10 +261,9 @@ const s =(isMobile) => ({
     fontWeight:   700,
     fontSize:     '0.95rem',
     cursor:       'pointer',
-    fontFamily:   'inherit',
+    fontFamily:   'Nunito, sans-serif',
   },
 
-  section: { },
   sectionHeader: {
     display:        'flex',
     alignItems:     'baseline',
@@ -275,54 +274,16 @@ const s =(isMobile) => ({
     fontFamily:    '"Bebas Neue", sans-serif',
     fontSize:      '1.6rem',
     letterSpacing: '2px',
+    color:         '#f0f0f0',
   },
-  continuandoGrid: {
-  display:             'grid',
-  gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(200px, 1fr))',
-  gap:                 isMobile ? '12px' : '16px',
-},
-continuandoCard: {
-  background:   '#13131f',
-  borderRadius: '10px',
-  overflow:     'hidden',
-  border:       '1px solid #1e1e32',
-  cursor:       'pointer',
-  transition:   'transform 0.2s, border-color 0.2s',
-},
-continuandoThumb: { position: 'relative', aspectRatio: '16/9', overflow: 'hidden' },
-continuandoImg:   { width: '100%', height: '100%', objectFit: 'cover' },
-continuandoPlaceholder: {
-  width: '100%', height: '100%',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  fontSize: '2rem', background: 'linear-gradient(135deg, #1a1a2e, #0d0d14)',
-},
-continuandoBarWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#1e1e32' },
-continuandoBar:     { height: '100%', background: '#e63946', transition: 'width 0.3s' },
-continuandoPlay: {
-  position:       'absolute',
-  top: '50%', left: '50%',
-  transform:      'translate(-50%, -50%)',
-  width:          '36px',
-  height:         '36px',
-  background:     'rgba(230,57,70,0.9)',
-  borderRadius:   '50%',
-  display:        'flex',
-  alignItems:     'center',
-  justifyContent: 'center',
-  fontSize:       '0.9rem',
-  color:          '#fff',
-},
-continuandoInfo:  { padding: '10px 12px' },
-continuandoAnime: { fontWeight: 800, fontSize: '0.82rem', marginBottom: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-continuandoEp:    { fontSize: '0.75rem', color: '#888', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   verTodos: {
-    background: 'transparent',
-    border:     'none',
-    color:      '#e63946',
-    fontWeight: 700,
-    fontSize:   '0.85rem',
-    cursor:     'pointer',
-    fontFamily: 'inherit',
+    background:  'transparent',
+    border:      'none',
+    color:       '#e63946',
+    fontWeight:  700,
+    fontSize:    '0.85rem',
+    cursor:      'pointer',
+    fontFamily:  'Nunito, sans-serif',
   },
 
   vazio: {
@@ -334,10 +295,7 @@ continuandoEp:    { fontSize: '0.75rem', color: '#888', whiteSpace: 'nowrap', ov
     border:       '1px solid #1e1e32',
   },
 
-  grid: {
-    display: 'grid',
-  },
-
+  // Cards de anime
   card: {
     background:   '#13131f',
     borderRadius: '10px',
@@ -351,64 +309,69 @@ continuandoEp:    { fontSize: '0.75rem', color: '#888', whiteSpace: 'nowrap', ov
     borderColor: '#e63946',
     boxShadow:   '0 12px 40px rgba(230,57,70,0.2)',
   },
-  cardThumb: {
-    position:    'relative',
-    aspectRatio: '3/4',
-    overflow:    'hidden',
-  },
-  cardImg:         { width: '100%', height: '100%', objectFit: 'cover' },
+  cardThumb: { position: 'relative', aspectRatio: '3/4', overflow: 'hidden' },
+  cardImg:   { width: '100%', height: '100%', objectFit: 'cover' },
   cardPlaceholder: {
     width: '100%', height: '100%',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    fontSize:       '3rem',
-    background:     'linear-gradient(135deg, #1a1a2e, #0d0d14)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '3rem', background: 'linear-gradient(135deg, #1a1a2e, #0d0d14)',
   },
   cardOverlay: {
-    position:       'absolute',
-    inset:          0,
-    background:     'rgba(0,0,0,0.5)',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
+    position: 'absolute', inset: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   playIcon: {
-    width:          '48px',
-    height:         '48px',
-    background:     '#e63946',
-    borderRadius:   '50%',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    fontSize:       '1.1rem',
-    color:          '#fff',
+    width: '48px', height: '48px', background: '#e63946', borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '1.1rem', color: '#fff',
   },
   cardEp: {
-    position:     'absolute',
-    top:          '8px',
-    right:        '8px',
-    background:   'rgba(0,0,0,0.75)',
-    color:        '#f4a261',
-    fontSize:     '0.65rem',
-    fontWeight:   800,
-    padding:      '3px 7px',
-    borderRadius: '4px',
+    position: 'absolute', top: '8px', right: '8px',
+    background: 'rgba(0,0,0,0.75)', color: '#f4a261',
+    fontSize: '0.65rem', fontWeight: 800, padding: '3px 7px', borderRadius: '4px',
   },
   cardInfo:   { padding: '12px' },
   cardTitulo: {
-    fontWeight:   800,
-    fontSize:     '0.88rem',
-    marginBottom: '4px',
-    whiteSpace:   'nowrap',
-    overflow:     'hidden',
-    textOverflow: 'ellipsis',
+    fontWeight: 800, fontSize: '0.88rem', marginBottom: '4px',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+    color: '#f0f0f0',
   },
-  cardSub: {
-    display:        'flex',
-    justifyContent: 'space-between',
-    fontSize:       '0.75rem',
-    color:          '#888',
-  },
+  cardSub:  { display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#888' },
   cardNota: { color: '#f4a261', fontWeight: 700 },
-});
+
+  // Continuar assistindo
+  continuandoCard: {
+    background:   '#13131f',
+    borderRadius: '10px',
+    overflow:     'hidden',
+    border:       '1px solid #1e1e32',
+    cursor:       'pointer',
+    transition:   'transform 0.2s, border-color 0.2s',
+  },
+  continuandoThumb:       { position: 'relative', aspectRatio: '16/9', overflow: 'hidden' },
+  continuandoImg:         { width: '100%', height: '100%', objectFit: 'cover' },
+  continuandoPlaceholder: {
+    width: '100%', height: '100%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '2rem', background: 'linear-gradient(135deg, #1a1a2e, #0d0d14)',
+  },
+  continuandoBarWrap: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#1e1e32' },
+  continuandoBar:     { height: '100%', background: '#e63946', transition: 'width 0.3s' },
+  continuandoPlay: {
+    position: 'absolute', top: '50%', left: '50%',
+    transform: 'translate(-50%, -50%)',
+    width: '36px', height: '36px', background: 'rgba(230,57,70,0.9)',
+    borderRadius: '50%', display: 'flex', alignItems: 'center',
+    justifyContent: 'center', fontSize: '0.9rem', color: '#fff',
+  },
+  continuandoInfo:  { padding: '10px 12px' },
+  continuandoAnime: {
+    fontWeight: 800, fontSize: '0.82rem', marginBottom: '3px',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#f0f0f0',
+  },
+  continuandoEp: {
+    fontSize: '0.75rem', color: '#888',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+  },
+};
