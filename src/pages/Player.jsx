@@ -20,7 +20,6 @@ function getYoutubeEmbed(url, segundos = 0) {
   return url;
 }
 
-// Formata segundos em mm:ss
 function formatarTempo(segundos) {
   const m = Math.floor(segundos / 60);
   const s = Math.floor(segundos % 60);
@@ -33,16 +32,20 @@ export default function Player() {
   const { user }     = useAuth();
   const { isMobile } = useWindowSize();
 
-  const [episodio,   setEpisodio]   = useState(null);
-  const [proximoEp,  setProximoEp]  = useState(null);
-  const [anteriorEp, setAnteriorEp] = useState(null);
-  const [loading,    setLoading]    = useState(true);
-  const [progresso,  setProgresso]  = useState({ segundos: 0, concluido: false });
-  const [salvando,   setSalvando]   = useState(false);
+  const [episodio,         setEpisodio]         = useState(null);
+  const [proximoEp,        setProximoEp]        = useState(null);
+  const [anteriorEp,       setAnteriorEp]       = useState(null);
+  const [loading,          setLoading]          = useState(true);
+  const [segundosExibidos, setSegundosExibidos] = useState(0);
+  const [concluido,        setConcluido]        = useState(false);
+  const [salvando,         setSalvando]         = useState(false);
 
-  // Ref para o intervalo de auto-save
   const intervaloRef = useRef(null);
   const segundosRef  = useRef(0);
+  const iniciouRef   = useRef(false);
+
+  // Guarda a URL do embed em um ref para não recriar o iframe
+  const embedUrlRef  = useRef('');
 
   useEffect(() => {
     async function carregar() {
@@ -51,16 +54,19 @@ export default function Player() {
         const { data: ep } = await api.get(`/animes/0/episodios/${id}`);
         setEpisodio(ep);
 
+        // Gera a URL uma vez e salva no ref
+        embedUrlRef.current = getYoutubeEmbed(ep.urlVideo, 0);
+
         const { data: todos } = await api.get(`/animes/${ep.animeId}/episodios`);
         const index = todos.findIndex(e => e.id === ep.id);
         setAnteriorEp(index > 0              ? todos[index - 1] : null);
         setProximoEp( index < todos.length-1 ? todos[index + 1] : null);
 
-        // Busca o progresso salvo (só se estiver logado)
         if (user) {
           const { data: prog } = await api.get(`/progresso/episodio/${ep.id}`);
-          setProgresso(prog);
           segundosRef.current = prog.segundos ?? 0;
+          setSegundosExibidos(prog.segundos ?? 0);
+          setConcluido(prog.concluido ?? false);
         }
       } catch (err) {
         console.error(err);
@@ -70,35 +76,31 @@ export default function Player() {
     }
     carregar();
 
-    // Limpa o intervalo ao sair da página
-    return () => { if (intervaloRef.current) clearInterval(intervaloRef.current); };
+    return () => {
+      if (intervaloRef.current) clearInterval(intervaloRef.current);
+    };
   }, [id, user]);
 
-  // Inicia o auto-save após carregar o episódio
-  useEffect(() => {
-  if (!episodio || !user) return;
+  // Inicia o contador apenas quando o usuário clicar em "Estou assistindo"
+  function iniciarContador() {
+    if (iniciouRef.current) return;
+    iniciouRef.current = true;
 
-  // Só inicia o contador após 3 segundos na página
-  // (tempo para o usuário decidir se vai assistir)
-  const inicio = setTimeout(() => {
+    // Força re-render para atualizar o texto do botão
+    setSegundosExibidos(segundosRef.current);
+
     intervaloRef.current = setInterval(() => {
       segundosRef.current += 1;
-      setProgresso(prev => ({ ...prev, segundos: segundosRef.current }));
+      setSegundosExibidos(segundosRef.current);
 
       // Salva no banco a cada 30 segundos
       if (segundosRef.current % 30 === 0) {
         salvarProgresso(segundosRef.current, false);
       }
     }, 1000);
-  }, 3000);
+  }
 
-  return () => {
-    clearTimeout(inicio);
-    clearInterval(intervaloRef.current);
-  };
-}, [episodio, user]);
-
-  async function salvarProgresso(segundos, concluido = false) {
+  async function salvarProgresso(segundos, concluidoVal = false) {
     if (!user || !episodio) return;
     setSalvando(true);
     try {
@@ -106,9 +108,9 @@ export default function Player() {
         episodioId: episodio.id,
         animeId:    episodio.animeId,
         segundos,
-        concluido,
+        concluido:  concluidoVal,
       });
-      setProgresso(prev => ({ ...prev, segundos, concluido }));
+      if (concluidoVal) setConcluido(true);
     } catch (err) {
       console.error(err);
     } finally {
@@ -117,6 +119,7 @@ export default function Player() {
   }
 
   async function marcarConcluido() {
+    clearInterval(intervaloRef.current);
     await salvarProgresso(segundosRef.current, true);
     if (proximoEp) navigate(`/assistir/${proximoEp.id}`);
   }
@@ -124,22 +127,21 @@ export default function Player() {
   if (loading)   return <div style={s.loading}>Carregando player...</div>;
   if (!episodio) return <div style={s.loading}>Episódio não encontrado.</div>;
 
-  const embedUrl = getYoutubeEmbed(episodio.urlVideo, progresso.segundos);
   const duracaoTotal = (episodio.duracao ?? 24) * 60;
-  const porcentagem  = Math.min((progresso.segundos / duracaoTotal) * 100, 100);
+  const porcentagem  = Math.min((segundosExibidos / duracaoTotal) * 100, 100);
 
   return (
     <div style={s.page}>
 
       {/* ── PLAYER ── */}
       <div style={s.playerWrap}>
-        {embedUrl ? (
+        {embedUrlRef.current ? (
           <iframe
             style={s.iframe}
-            src={embedUrl}
+            src={embedUrlRef.current}
             title={episodio.titulo}
             allowFullScreen
-            allow="autoplay; encrypted-media"
+            allow="encrypted-media"
             frameBorder="0"
           />
         ) : (
@@ -158,20 +160,27 @@ export default function Player() {
           </div>
           <div style={s.progressoInfo}>
             <span style={s.progressoTexto}>
-              {progresso.concluido
+              {concluido
                 ? '✓ Episódio concluído'
                 : salvando
                 ? '💾 Salvando...'
-                : `⏱ ${formatarTempo(progresso.segundos)} assistidos`
+                : iniciouRef.current
+                ? `⏱ ${formatarTempo(segundosExibidos)} assistidos`
+                : 'Clique em "Estou assistindo" para salvar o progresso'
               }
             </span>
             <div style={s.progressoAcoes}>
-              {!progresso.concluido && (
+              {!concluido && !iniciouRef.current && (
+                <button style={s.btnAssistindo} onClick={iniciarContador}>
+                  ▶ Estou assistindo
+                </button>
+              )}
+              {!concluido && iniciouRef.current && (
                 <button style={s.btnConcluir} onClick={marcarConcluido}>
                   {proximoEp ? '✓ Concluído → Próximo EP' : '✓ Marcar como concluído'}
                 </button>
               )}
-              {progresso.concluido && proximoEp && (
+              {concluido && proximoEp && (
                 <button style={s.btnProximo} onClick={() => navigate(`/assistir/${proximoEp.id}`)}>
                   Próximo EP →
                 </button>
@@ -203,7 +212,6 @@ export default function Player() {
           {episodio.descricao && <p style={s.epDesc}>{episodio.descricao}</p>}
           {episodio.duracao   && <span style={s.epDuracao}>⏱ {episodio.duracao} minutos</span>}
 
-          {/* Aviso para fazer login */}
           {!user && (
             <div style={s.loginAviso}>
               <span>Faça login para salvar seu progresso automaticamente.</span>
@@ -253,24 +261,36 @@ const s = {
   playerWrap: { width: '100%', background: '#000', aspectRatio: '16/9', maxHeight: 'calc(100vh - 64px - 120px)' },
   iframe:     { width: '100%', height: '100%', border: 'none', display: 'block' },
   semVideo:   {
-    width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-    alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#888', background: '#0a0a0f',
+    width: '100%', height: '100%',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    gap: '12px', color: '#888', background: '#0a0a0f',
   },
 
-  // Barra de progresso
   progressoWrap: { background: '#0d0d14', borderBottom: '1px solid #1e1e32', padding: '12px 40px' },
   progressoBar:  { height: '4px', background: '#1e1e32', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' },
-  progressoFill: { height: '100%', background: '#e63946', borderRadius: '2px', transition: 'width 0.3s' },
+  progressoFill: { height: '100%', background: '#e63946', borderRadius: '2px', transition: 'width 0.5s' },
   progressoInfo: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' },
   progressoTexto:{ fontSize: '0.82rem', color: '#888', fontWeight: 700 },
   progressoAcoes:{ display: 'flex', gap: '10px' },
+
+  btnAssistindo: {
+    background:   '#4cc9f0',
+    color:        '#0d0d14',
+    border:       'none',
+    padding:      '7px 16px',
+    borderRadius: '6px',
+    fontFamily:   'Nunito, sans-serif',
+    fontWeight:   800,
+    fontSize:     '0.82rem',
+    cursor:       'pointer',
+  },
   btnConcluir: {
     background:   '#52b788',
     color:        '#fff',
     border:       'none',
     padding:      '7px 16px',
     borderRadius: '6px',
-    fontFamily:   'inherit',
+    fontFamily:   'Nunito, sans-serif',
     fontWeight:   800,
     fontSize:     '0.82rem',
     cursor:       'pointer',
@@ -281,7 +301,7 @@ const s = {
     border:       'none',
     padding:      '7px 16px',
     borderRadius: '6px',
-    fontFamily:   'inherit',
+    fontFamily:   'Nunito, sans-serif',
     fontWeight:   800,
     fontSize:     '0.82rem',
     cursor:       'pointer',
@@ -296,46 +316,47 @@ const s = {
   breadAtual: { color: '#f0f0f0', fontWeight: 700 },
 
   epTitulo: {
-    fontFamily: '"Bebas Neue", sans-serif', fontSize: '2rem', letterSpacing: '2px',
-    marginBottom: '10px', display: 'flex', alignItems: 'baseline', gap: '12px', flexWrap: 'wrap',
+    fontFamily:    '"Bebas Neue", sans-serif',
+    fontSize:      '2rem',
+    letterSpacing: '2px',
+    marginBottom:  '10px',
+    display:       'flex',
+    alignItems:    'baseline',
+    gap:           '12px',
+    flexWrap:      'wrap',
+    color:         '#f0f0f0',
   },
-  epNumero: { color: '#e63946', fontSize: '1rem', fontFamily: 'Nunito, sans-serif', fontWeight: 900 },
-  epDesc:   { fontSize: '0.9rem', color: '#bbb', lineHeight: 1.65, marginBottom: '12px' },
-  epDuracao:{ display: 'inline-block', fontSize: '0.82rem', color: '#888', background: '#13131f', border: '1px solid #1e1e32', padding: '4px 12px', borderRadius: '999px' },
+  epNumero:  { color: '#e63946', fontSize: '1rem', fontFamily: 'Nunito, sans-serif', fontWeight: 900 },
+  epDesc:    { fontSize: '0.9rem', color: '#bbb', lineHeight: 1.65, marginBottom: '12px' },
+  epDuracao: {
+    display: 'inline-block', fontSize: '0.82rem', color: '#888',
+    background: '#13131f', border: '1px solid #1e1e32',
+    padding: '4px 12px', borderRadius: '999px',
+  },
 
   loginAviso: {
-    display:      'flex',
-    alignItems:   'center',
-    gap:          '12px',
-    background:   'rgba(230,57,70,0.08)',
-    border:       '1px solid rgba(230,57,70,0.2)',
-    borderRadius: '8px',
-    padding:      '12px 16px',
-    marginTop:    '16px',
-    fontSize:     '0.85rem',
-    color:        '#bbb',
-    flexWrap:     'wrap',
+    display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+    background: 'rgba(230,57,70,0.08)', border: '1px solid rgba(230,57,70,0.2)',
+    borderRadius: '8px', padding: '12px 16px', marginTop: '16px',
+    fontSize: '0.85rem', color: '#bbb',
   },
   btnLogin: {
-    background:   '#e63946',
-    color:        '#fff',
-    border:       'none',
-    padding:      '6px 16px',
-    borderRadius: '6px',
-    fontFamily:   'inherit',
-    fontWeight:   800,
-    fontSize:     '0.82rem',
-    cursor:       'pointer',
-    marginLeft:   'auto',
+    background: '#e63946', color: '#fff', border: 'none',
+    padding: '6px 16px', borderRadius: '6px', fontFamily: 'Nunito, sans-serif',
+    fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', marginLeft: 'auto',
   },
 
-  navEps:         { display: 'grid', gap: '12px', marginBottom: '24px' },
-  navBtn:         { display: 'flex', alignItems: 'center', gap: '12px', background: '#13131f', border: '1px solid #1e1e32', borderRadius: '10px', padding: '14px 18px', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' },
-  navBtnProximo:  { justifyContent: 'flex-end', textAlign: 'right' },
-  navSeta:        { fontSize: '1.2rem', color: '#e63946', flexShrink: 0 },
-  navInfo:        { display: 'flex', flexDirection: 'column', gap: '3px' },
-  navLabel:       { fontSize: '0.7rem', color: '#888', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' },
-  navNome:        { fontSize: '0.85rem', color: '#f0f0f0', fontWeight: 800 },
+  navEps:        { display: 'grid', gap: '12px', marginBottom: '24px' },
+  navBtn:        { display: 'flex', alignItems: 'center', gap: '12px', background: '#13131f', border: '1px solid #1e1e32', borderRadius: '10px', padding: '14px 18px', cursor: 'pointer', textAlign: 'left', fontFamily: 'Nunito, sans-serif' },
+  navBtnProximo: { justifyContent: 'flex-end', textAlign: 'right' },
+  navSeta:       { fontSize: '1.2rem', color: '#e63946', flexShrink: 0 },
+  navInfo:       { display: 'flex', flexDirection: 'column', gap: '3px' },
+  navLabel:      { fontSize: '0.7rem', color: '#888', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' },
+  navNome:       { fontSize: '0.85rem', color: '#f0f0f0', fontWeight: 800 },
 
-  btnVoltar: { background: 'transparent', border: '1px solid #1e1e32', color: '#888', padding: '10px 20px', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' },
+  btnVoltar: {
+    background: 'transparent', border: '1px solid #1e1e32', color: '#888',
+    padding: '10px 20px', borderRadius: '8px', fontFamily: 'Nunito, sans-serif',
+    fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+  },
 };
