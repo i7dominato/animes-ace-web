@@ -39,6 +39,7 @@ export default function Player() {
   const [segundosExibidos, setSegundosExibidos] = useState(0);
   const [concluido,        setConcluido]        = useState(false);
   const [salvando,         setSalvando]         = useState(false);
+  const [iniciou, setIniciou] = useState(false);
 
   const intervaloRef = useRef(null);
   const segundosRef  = useRef(0);
@@ -85,6 +86,7 @@ export default function Player() {
   function iniciarContador() {
     if (iniciouRef.current) return;
     iniciouRef.current = true;
+    setIniciou(true); // ← adicione essa linha
 
     // Força re-render para atualizar o texto do botão
     setSegundosExibidos(segundosRef.current);
@@ -164,18 +166,18 @@ export default function Player() {
                 ? '✓ Episódio concluído'
                 : salvando
                 ? '💾 Salvando...'
-                : iniciouRef.current
+                : iniciou
                 ? `⏱ ${formatarTempo(segundosExibidos)} assistidos`
                 : 'Clique em "Estou assistindo" para salvar o progresso'
               }
             </span>
             <div style={s.progressoAcoes}>
-              {!concluido && !iniciouRef.current && (
+              {!concluido && !iniciou && (
                 <button style={s.btnAssistindo} onClick={iniciarContador}>
                   ▶ Estou assistindo
                 </button>
               )}
-              {!concluido && iniciouRef.current && (
+              {!concluido && iniciou&& (
                 <button style={s.btnConcluir} onClick={marcarConcluido}>
                   {proximoEp ? '✓ Concluído → Próximo EP' : '✓ Marcar como concluído'}
                 </button>
