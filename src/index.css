@@ -27,12 +27,5 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
 
 a { text-decoration: none; color: inherit; }
-button {
-  cursor:     pointer;
-  font-family: inherit;
-  background: transparent;
-  border:     none;
-  padding:    0;
-  color:      inherit;
-}
+button { cursor: pointer; font-family: inherit; }
 img { max-width: 100%; }

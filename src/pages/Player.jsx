@@ -78,20 +78,24 @@ export default function Player() {
   useEffect(() => {
   if (!episodio || !user) return;
 
-  // Contador de 1 em 1 segundo
-  intervaloRef.current = setInterval(() => {
-    segundosRef.current += 1;
+  // Só inicia o contador após 3 segundos na página
+  // (tempo para o usuário decidir se vai assistir)
+  const inicio = setTimeout(() => {
+    intervaloRef.current = setInterval(() => {
+      segundosRef.current += 1;
+      setProgresso(prev => ({ ...prev, segundos: segundosRef.current }));
 
-    // Atualiza o texto na tela a cada segundo
-    setProgresso(prev => ({ ...prev, segundos: segundosRef.current }));
+      // Salva no banco a cada 30 segundos
+      if (segundosRef.current % 30 === 0) {
+        salvarProgresso(segundosRef.current, false);
+      }
+    }, 1000);
+  }, 3000);
 
-    // Salva no banco a cada 30 segundos
-    if (segundosRef.current % 30 === 0) {
-      salvarProgresso(segundosRef.current, false);
-    }
-  }, 1000);
-
-  return () => clearInterval(intervaloRef.current);
+  return () => {
+    clearTimeout(inicio);
+    clearInterval(intervaloRef.current);
+  };
 }, [episodio, user]);
 
   async function salvarProgresso(segundos, concluido = false) {
