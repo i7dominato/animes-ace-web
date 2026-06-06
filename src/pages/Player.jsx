@@ -76,16 +76,23 @@ export default function Player() {
 
   // Inicia o auto-save após carregar o episódio
   useEffect(() => {
-    if (!episodio || !user) return;
+  if (!episodio || !user) return;
 
-    // Salva o progresso a cada 15 segundos automaticamente
-    intervaloRef.current = setInterval(() => {
-      segundosRef.current += 15;
+  // Contador de 1 em 1 segundo
+  intervaloRef.current = setInterval(() => {
+    segundosRef.current += 1;
+
+    // Atualiza o texto na tela a cada segundo
+    setProgresso(prev => ({ ...prev, segundos: segundosRef.current }));
+
+    // Salva no banco a cada 30 segundos
+    if (segundosRef.current % 30 === 0) {
       salvarProgresso(segundosRef.current, false);
-    }, 15000);
+    }
+  }, 1000);
 
-    return () => clearInterval(intervaloRef.current);
-  }, [episodio, user]);
+  return () => clearInterval(intervaloRef.current);
+}, [episodio, user]);
 
   async function salvarProgresso(segundos, concluido = false) {
     if (!user || !episodio) return;
