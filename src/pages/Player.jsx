@@ -4,20 +4,18 @@ import { useWindowSize }               from '../hooks/useWindowSize';
 import { useAuth }                     from '../context/AuthContext';
 import api                             from '../services/api';
 
-function getYoutubeEmbed(url, segundos = 0) {
+function extrairVideoId(url) {
   if (!url) return null;
   const regexes = [
     /youtube\.com\/watch\?v=([^&]+)/,
     /youtu\.be\/([^?]+)/,
+    /youtube\.com\/embed\/([^?]+)/,
   ];
   for (const regex of regexes) {
     const match = url.match(regex);
-    if (match) {
-      const start = segundos > 10 ? `&start=${Math.floor(segundos)}` : '';
-      return `https://www.youtube.com/embed/${match[1]}?rel=0${start}`;
-    }
+    if (match) return match[1];
   }
-  return url;
+  return null;
 }
 
 function formatarTempo(segundos) {
@@ -39,14 +37,13 @@ export default function Player() {
   const [segundosExibidos, setSegundosExibidos] = useState(0);
   const [concluido,        setConcluido]        = useState(false);
   const [salvando,         setSalvando]         = useState(false);
-  const [iniciou, setIniciou] = useState(false);
+  const [playerPronto,     setPlayerPronto]     = useState(false);
+  const [rodando,          setRodando]          = useState(false);
 
+  const playerRef    = useRef(null); // Instância do YT.Player
   const intervaloRef = useRef(null);
   const segundosRef  = useRef(0);
-  const iniciouRef   = useRef(false);
-
-  // Guarda a URL do embed em um ref para não recriar o iframe
-  const embedUrlRef  = useRef('');
+  const episodioRef  = useRef(null); // Ref para usar dentro dos callbacks do YT
 
   useEffect(() => {
     async function carregar() {
@@ -54,9 +51,7 @@ export default function Player() {
       try {
         const { data: ep } = await api.get(`/animes/0/episodios/${id}`);
         setEpisodio(ep);
-
-        // Gera a URL uma vez e salva no ref
-        embedUrlRef.current = getYoutubeEmbed(ep.urlVideo, 0);
+        episodioRef.current = ep;
 
         const { data: todos } = await api.get(`/animes/${ep.animeId}/episodios`);
         const index = todos.findIndex(e => e.id === ep.id);
@@ -79,36 +74,91 @@ export default function Player() {
 
     return () => {
       if (intervaloRef.current) clearInterval(intervaloRef.current);
+      if (playerRef.current)    playerRef.current.destroy?.();
     };
   }, [id, user]);
 
-  // Inicia o contador apenas quando o usuário clicar em "Estou assistindo"
-  function iniciarContador() {
-    if (iniciouRef.current) return;
-    iniciouRef.current = true;
-    setIniciou(true); // ← adicione essa linha
+  // Carrega a YouTube IFrame API e cria o player
+  useEffect(() => {
+    if (!episodio) return;
 
-    // Força re-render para atualizar o texto do botão
-    setSegundosExibidos(segundosRef.current);
+    const videoId = extrairVideoId(episodio.urlVideo);
+    if (!videoId) return;
 
-    intervaloRef.current = setInterval(() => {
-      segundosRef.current += 1;
-      setSegundosExibidos(segundosRef.current);
+    function criarPlayer() {
+      playerRef.current = new window.YT.Player('yt-player', {
+        videoId,
+        playerVars: {
+          rel:      0,
+          modestbranding: 1,
+          start:    segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
+        },
+        events: {
+          onReady: () => setPlayerPronto(true),
+          onStateChange: (event) => {
+            // 1 = playing, 2 = paused, 0 = ended
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              setRodando(true);
+              // Inicia o contador
+              if (!intervaloRef.current) {
+                intervaloRef.current = setInterval(async () => {
+                  segundosRef.current += 1;
+                  setSegundosExibidos(segundosRef.current);
 
-      // Salva no banco a cada 30 segundos
-      if (segundosRef.current % 30 === 0) {
-        salvarProgresso(segundosRef.current, false);
-      }
-    }, 1000);
-  }
+                  // Salva no banco a cada 30 segundos
+                  if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
+                    try {
+                      await api.post('/progresso', {
+                        episodioId: episodioRef.current.id,
+                        animeId:    episodioRef.current.animeId,
+                        segundos:   segundosRef.current,
+                        concluido:  false,
+                      });
+                    } catch (err) {
+                      console.error('Erro ao salvar progresso:', err);
+                    }
+                  }
+                }, 1000);
+              }
+            } else {
+              // Pausado ou encerrado — para o contador
+              setRodando(false);
+              if (intervaloRef.current) {
+                clearInterval(intervaloRef.current);
+                intervaloRef.current = null;
+              }
+
+              // Se o vídeo terminou (state 0), marca como concluído
+              if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
+                salvarProgresso(segundosRef.current, true);
+              }
+            }
+          },
+        },
+      });
+    }
+
+    // Se a API já carregou, cria o player direto
+    if (window.YT && window.YT.Player) {
+      criarPlayer();
+      return;
+    }
+
+    // Caso contrário, carrega o script da API
+    const tag = document.createElement('script');
+    tag.src   = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = criarPlayer;
+
+  }, [episodio]);
 
   async function salvarProgresso(segundos, concluidoVal = false) {
-    if (!user || !episodio) return;
+    if (!user || !episodioRef.current) return;
     setSalvando(true);
     try {
       await api.post('/progresso', {
-        episodioId: episodio.id,
-        animeId:    episodio.animeId,
+        episodioId: episodioRef.current.id,
+        animeId:    episodioRef.current.animeId,
         segundos,
         concluido:  concluidoVal,
       });
@@ -121,7 +171,10 @@ export default function Player() {
   }
 
   async function marcarConcluido() {
-    clearInterval(intervaloRef.current);
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
     await salvarProgresso(segundosRef.current, true);
     if (proximoEp) navigate(`/assistir/${proximoEp.id}`);
   }
@@ -137,21 +190,8 @@ export default function Player() {
 
       {/* ── PLAYER ── */}
       <div style={s.playerWrap}>
-        {embedUrlRef.current ? (
-          <iframe
-            style={s.iframe}
-            src={embedUrlRef.current}
-            title={episodio.titulo}
-            allowFullScreen
-            allow="encrypted-media"
-            frameBorder="0"
-          />
-        ) : (
-          <div style={s.semVideo}>
-            <span style={{ fontSize: '3rem' }}>📺</span>
-            <p>Vídeo não disponível.</p>
-          </div>
-        )}
+        {/* Div onde o YT.Player vai ser injetado */}
+        <div id="yt-player" style={s.ytPlayer} />
       </div>
 
       {/* ── BARRA DE PROGRESSO ── */}
@@ -166,18 +206,17 @@ export default function Player() {
                 ? '✓ Episódio concluído'
                 : salvando
                 ? '💾 Salvando...'
-                : iniciou
+                : rodando
                 ? `⏱ ${formatarTempo(segundosExibidos)} assistidos`
-                : 'Clique em "Estou assistindo" para salvar o progresso'
+                : segundosExibidos > 0
+                ? `⏸ ${formatarTempo(segundosExibidos)} assistidos (pausado)`
+                : playerPronto
+                ? '▶ Dê play para começar a salvar o progresso'
+                : 'Carregando player...'
               }
             </span>
             <div style={s.progressoAcoes}>
-              {!concluido && !iniciou && (
-                <button style={s.btnAssistindo} onClick={iniciarContador}>
-                  ▶ Estou assistindo
-                </button>
-              )}
-              {!concluido && iniciou&& (
+              {!concluido && segundosExibidos > 0 && (
                 <button style={s.btnConcluir} onClick={marcarConcluido}>
                   {proximoEp ? '✓ Concluído → Próximo EP' : '✓ Marcar como concluído'}
                 </button>
@@ -260,13 +299,8 @@ const s = {
   page:    { paddingTop: '64px', minHeight: '100vh', background: '#0a0a0f' },
   loading: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#888' },
 
-  playerWrap: { width: '100%', background: '#000', aspectRatio: '16/9', maxHeight: 'calc(100vh - 64px - 120px)' },
-  iframe:     { width: '100%', height: '100%', border: 'none', display: 'block' },
-  semVideo:   {
-    width: '100%', height: '100%',
-    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-    gap: '12px', color: '#888', background: '#0a0a0f',
-  },
+  playerWrap: { width: '100%', background: '#000', aspectRatio: '16/9', maxHeight: 'calc(100vh - 64px - 80px)' },
+  ytPlayer:   { width: '100%', height: '100%' },
 
   progressoWrap: { background: '#0d0d14', borderBottom: '1px solid #1e1e32', padding: '12px 40px' },
   progressoBar:  { height: '4px', background: '#1e1e32', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' },
@@ -275,38 +309,15 @@ const s = {
   progressoTexto:{ fontSize: '0.82rem', color: '#888', fontWeight: 700 },
   progressoAcoes:{ display: 'flex', gap: '10px' },
 
-  btnAssistindo: {
-    background:   '#4cc9f0',
-    color:        '#0d0d14',
-    border:       'none',
-    padding:      '7px 16px',
-    borderRadius: '6px',
-    fontFamily:   'Nunito, sans-serif',
-    fontWeight:   800,
-    fontSize:     '0.82rem',
-    cursor:       'pointer',
-  },
   btnConcluir: {
-    background:   '#52b788',
-    color:        '#fff',
-    border:       'none',
-    padding:      '7px 16px',
-    borderRadius: '6px',
-    fontFamily:   'Nunito, sans-serif',
-    fontWeight:   800,
-    fontSize:     '0.82rem',
-    cursor:       'pointer',
+    background: '#52b788', color: '#fff', border: 'none',
+    padding: '7px 16px', borderRadius: '6px', fontFamily: 'Nunito, sans-serif',
+    fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer',
   },
   btnProximo: {
-    background:   '#e63946',
-    color:        '#fff',
-    border:       'none',
-    padding:      '7px 16px',
-    borderRadius: '6px',
-    fontFamily:   'Nunito, sans-serif',
-    fontWeight:   800,
-    fontSize:     '0.82rem',
-    cursor:       'pointer',
+    background: '#e63946', color: '#fff', border: 'none',
+    padding: '7px 16px', borderRadius: '6px', fontFamily: 'Nunito, sans-serif',
+    fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer',
   },
 
   content:  { maxWidth: '900px' },
@@ -318,15 +329,9 @@ const s = {
   breadAtual: { color: '#f0f0f0', fontWeight: 700 },
 
   epTitulo: {
-    fontFamily:    '"Bebas Neue", sans-serif',
-    fontSize:      '2rem',
-    letterSpacing: '2px',
-    marginBottom:  '10px',
-    display:       'flex',
-    alignItems:    'baseline',
-    gap:           '12px',
-    flexWrap:      'wrap',
-    color:         '#f0f0f0',
+    fontFamily: '"Bebas Neue", sans-serif', fontSize: '2rem', letterSpacing: '2px',
+    marginBottom: '10px', display: 'flex', alignItems: 'baseline',
+    gap: '12px', flexWrap: 'wrap', color: '#f0f0f0',
   },
   epNumero:  { color: '#e63946', fontSize: '1rem', fontFamily: 'Nunito, sans-serif', fontWeight: 900 },
   epDesc:    { fontSize: '0.9rem', color: '#bbb', lineHeight: 1.65, marginBottom: '12px' },
