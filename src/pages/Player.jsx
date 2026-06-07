@@ -80,77 +80,95 @@ export default function Player() {
 
   // Carrega a YouTube IFrame API e cria o player
   useEffect(() => {
-    if (!episodio) return;
+  if (!episodio) return;
 
-    const videoId = extrairVideoId(episodio.urlVideo);
-    if (!videoId) return;
+  const videoId = extrairVideoId(episodio.urlVideo);
+  if (!videoId) return;
 
-    function criarPlayer() {
-      playerRef.current = new window.YT.Player('yt-player', {
-        videoId,
-        playerVars: {
-          rel:      0,
-          modestbranding: 1,
-          start:    segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
+  let player;
+
+  function criarPlayer() {
+    // Garante que o elemento existe antes de criar o player
+    if (!document.getElementById('yt-player')) return;
+
+    player = new window.YT.Player('yt-player', {
+      videoId,
+      width:  '100%',
+      height: '100%',
+      playerVars: {
+        rel:            0,
+        modestbranding: 1,
+        start: segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
+      },
+      events: {
+        onReady: () => {
+          playerRef.current = player;
+          setPlayerPronto(true);
         },
-        events: {
-          onReady: () => setPlayerPronto(true),
-          onStateChange: (event) => {
-            // 1 = playing, 2 = paused, 0 = ended
-            if (event.data === window.YT.PlayerState.PLAYING) {
-              setRodando(true);
-              // Inicia o contador
-              if (!intervaloRef.current) {
-                intervaloRef.current = setInterval(async () => {
-                  segundosRef.current += 1;
-                  setSegundosExibidos(segundosRef.current);
+        onStateChange: (event) => {
+          if (event.data === window.YT.PlayerState.PLAYING) {
+            setRodando(true);
+            // Evita criar múltiplos intervalos
+            if (intervaloRef.current) clearInterval(intervaloRef.current);
+            intervaloRef.current = setInterval(async () => {
+              segundosRef.current += 1;
+              setSegundosExibidos(prev => prev + 1);
 
-                  // Salva no banco a cada 30 segundos
-                  if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
-                    try {
-                      await api.post('/progresso', {
-                        episodioId: episodioRef.current.id,
-                        animeId:    episodioRef.current.animeId,
-                        segundos:   segundosRef.current,
-                        concluido:  false,
-                      });
-                    } catch (err) {
-                      console.error('Erro ao salvar progresso:', err);
-                    }
-                  }
-                }, 1000);
+              if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
+                try {
+                  await api.post('/progresso', {
+                    episodioId: episodioRef.current.id,
+                    animeId:    episodioRef.current.animeId,
+                    segundos:   segundosRef.current,
+                    concluido:  false,
+                  });
+                } catch (err) {
+                  console.error('Erro ao salvar progresso:', err);
+                }
               }
-            } else {
-              // Pausado ou encerrado — para o contador
-              setRodando(false);
-              if (intervaloRef.current) {
-                clearInterval(intervaloRef.current);
-                intervaloRef.current = null;
-              }
+            }, 1000);
 
-              // Se o vídeo terminou (state 0), marca como concluído
-              if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
-                salvarProgresso(segundosRef.current, true);
-              }
+          } else {
+            setRodando(false);
+            if (intervaloRef.current) {
+              clearInterval(intervaloRef.current);
+              intervaloRef.current = null;
             }
-          },
+
+            if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
+              salvarProgresso(segundosRef.current, true);
+            }
+          }
         },
-      });
-    }
+      },
+    });
+  }
 
-    // Se a API já carregou, cria o player direto
-    if (window.YT && window.YT.Player) {
-      criarPlayer();
-      return;
+  // Se a API já está carregada, cria o player direto
+  if (window.YT && window.YT.Player) {
+    criarPlayer();
+  } else {
+    // Carrega o script apenas se ainda não foi carregado
+    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+      const tag = document.createElement('script');
+      tag.src   = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
     }
-
-    // Caso contrário, carrega o script da API
-    const tag = document.createElement('script');
-    tag.src   = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
     window.onYouTubeIframeAPIReady = criarPlayer;
+  }
 
-  }, [episodio]);
+  // Cleanup ao sair da página
+  return () => {
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
+    if (playerRef.current) {
+      playerRef.current.destroy();
+      playerRef.current = null;
+    }
+  };
+}, [episodio]);
 
   async function salvarProgresso(segundos, concluidoVal = false) {
     if (!user || !episodioRef.current) return;
