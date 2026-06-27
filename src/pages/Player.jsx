@@ -40,10 +40,10 @@ export default function Player() {
   const [playerPronto,     setPlayerPronto]     = useState(false);
   const [rodando,          setRodando]          = useState(false);
 
-  const playerRef    = useRef(null); // Instância do YT.Player
+  const playerRef    = useRef(null);
   const intervaloRef = useRef(null);
   const segundosRef  = useRef(0);
-  const episodioRef  = useRef(null); // Ref para usar dentro dos callbacks do YT
+  const episodioRef  = useRef(null);
 
   useEffect(() => {
     async function carregar() {
@@ -59,10 +59,15 @@ export default function Player() {
         setProximoEp( index < todos.length-1 ? todos[index + 1] : null);
 
         if (user) {
-          const { data: prog } = await api.get(`/progresso/episodio/${ep.id}`);
-          segundosRef.current = prog.segundos ?? 0;
-          setSegundosExibidos(prog.segundos ?? 0);
-          setConcluido(prog.concluido ?? false);
+          try {
+            const { data: prog } = await api.get(`/progresso/episodio/${ep.id}`);
+            segundosRef.current = prog.segundos ?? 0;
+            setSegundosExibidos(prog.segundos ?? 0);
+            setConcluido(prog.concluido ?? false);
+          } catch (err) {
+            console.error('Progresso não encontrado, começando do zero.', err);
+            segundosRef.current = 0;
+          }
         }
       } catch (err) {
         console.error(err);
@@ -78,103 +83,106 @@ export default function Player() {
     };
   }, [id, user]);
 
-  // Carrega a YouTube IFrame API e cria o player
+  // Cria o player do YouTube via IFrame API
   useEffect(() => {
-  if (!episodio) return;
+    if (!episodio) return;
 
-  const videoId = extrairVideoId(episodio.urlVideo);
-  console.log('videoId extraído:', videoId); // ← debug
+    const videoId = extrairVideoId(episodio.urlVideo);
+    console.log('[Player] videoId extraído:', videoId);
+    if (!videoId) return;
 
-  if (!videoId) return;
+    let player;
 
-  let player;
+    function criarPlayer() {
+      console.log('[Player] criarPlayer chamado');
+      if (!document.getElementById('yt-player')) {
+        console.log('[Player] elemento yt-player não encontrado no DOM');
+        return;
+      }
 
-  function criarPlayer() {
-    console.log('criarPlayer chamado'); // ← debug
-    if (!document.getElementById('yt-player')) {
-      console.log('elemento yt-player não encontrado'); // ← debug
-      return;
-    }
-
-    player = new window.YT.Player('yt-player', {
-      videoId,
-      width:  '100%',
-      height: '100%',
-      playerVars: {
-        rel:            0,
-        modestbranding: 1,
-        start: segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
-      },
-      events: {
-        onReady: () => {
-          console.log('player pronto!'); // ← debug
-          playerRef.current = player;
-          setPlayerPronto(true);
+      player = new window.YT.Player('yt-player', {
+        videoId,
+        width:  '100%',
+        height: '100%',
+        playerVars: {
+          rel:            0,
+          modestbranding: 1,
+          start: segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
         },
-        onStateChange: (event) => {
-          console.log('mudou estado:', event.data); // ← debug
-          // ... resto do código continua igual
-            // Evita criar múltiplos intervalos
-            if (intervaloRef.current) clearInterval(intervaloRef.current);
-            intervaloRef.current = setInterval(async () => {
-              segundosRef.current += 1;
-              setSegundosExibidos(prev => prev + 1);
+        events: {
+          onReady: () => {
+            console.log('[Player] player pronto!');
+            playerRef.current = player;
+            setPlayerPronto(true);
+          },
+          onError: (err) => {
+            console.log('[Player] erro no player:', err.data);
+          },
+          onStateChange: (event) => {
+            console.log('[Player] mudou estado:', event.data);
 
-              if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
-                try {
-                  await api.post('/progresso', {
-                    episodioId: episodioRef.current.id,
-                    animeId:    episodioRef.current.animeId,
-                    segundos:   segundosRef.current,
-                    concluido:  false,
-                  });
-                } catch (err) {
-                  console.error('Erro ao salvar progresso:', err);
+            if (event.data === window.YT.PlayerState.PLAYING) {
+              setRodando(true);
+
+              if (intervaloRef.current) clearInterval(intervaloRef.current);
+              intervaloRef.current = setInterval(async () => {
+                segundosRef.current += 1;
+                setSegundosExibidos(prev => prev + 1);
+
+                if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
+                  try {
+                    await api.post('/progresso', {
+                      episodioId: episodioRef.current.id,
+                      animeId:    episodioRef.current.animeId,
+                      segundos:   segundosRef.current,
+                      concluido:  false,
+                    });
+                  } catch (err) {
+                    console.error('Erro ao salvar progresso:', err);
+                  }
                 }
+              }, 1000);
+
+            } else {
+              setRodando(false);
+              if (intervaloRef.current) {
+                clearInterval(intervaloRef.current);
+                intervaloRef.current = null;
               }
-            }, 1000);
 
-          } else {
-            setRodando(false);
-            if (intervaloRef.current) {
-              clearInterval(intervaloRef.current);
-              intervaloRef.current = null;
+              if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
+                salvarProgresso(segundosRef.current, true);
+              }
             }
-
-            if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
-              salvarProgresso(segundosRef.current, true);
-            }
-          }
+          },
         },
-      },
-    });
-  }
+      });
+    }
 
-  // Se a API já está carregada, cria o player direto
-  if (window.YT && window.YT.Player) {
-    criarPlayer();
-  } else {
-    // Carrega o script apenas se ainda não foi carregado
-    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-      const tag = document.createElement('script');
-      tag.src   = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(tag);
+    if (window.YT && window.YT.Player) {
+      console.log('[Player] API já carregada, criando player direto');
+      criarPlayer();
+    } else {
+      console.log('[Player] carregando script da API do YouTube');
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const tag = document.createElement('script');
+        tag.src   = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(tag);
+      }
+      window.onYouTubeIframeAPIReady = criarPlayer;
     }
-    window.onYouTubeIframeAPIReady = criarPlayer;
-  }
 
-  // Cleanup ao sair da página
-  return () => {
-    if (intervaloRef.current) {
-      clearInterval(intervaloRef.current);
-      intervaloRef.current = null;
-    }
-    if (playerRef.current) {
-      playerRef.current.destroy();
-      playerRef.current = null;
-    }
-  };
-}, [episodio]);
+    return () => {
+      if (intervaloRef.current) {
+        clearInterval(intervaloRef.current);
+        intervaloRef.current = null;
+      }
+      if (playerRef.current) {
+        playerRef.current.destroy();
+        playerRef.current = null;
+      }
+    };
+  }, [episodio]);
 
   async function salvarProgresso(segundos, concluidoVal = false) {
     if (!user || !episodioRef.current) return;
@@ -214,7 +222,6 @@ export default function Player() {
 
       {/* ── PLAYER ── */}
       <div style={s.playerWrap}>
-        {/* Div onde o YT.Player vai ser injetado */}
         <div id="yt-player" style={s.ytPlayer} />
       </div>
 
