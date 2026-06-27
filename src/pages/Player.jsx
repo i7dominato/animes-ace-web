@@ -88,7 +88,6 @@ export default function Player() {
     if (!episodio) return;
 
     const videoId = extrairVideoId(episodio.urlVideo);
-    console.log('[Player] videoId extraído:', videoId);
     if (!videoId) return;
 
     let player;
@@ -117,7 +116,6 @@ export default function Player() {
     },
     events: {
       onReady: () => {
-        console.log('[Player] player pronto!');
         playerRef.current = player;
         setPlayerPronto(true);
       },
@@ -125,7 +123,6 @@ export default function Player() {
         console.log('[Player] erro no player:', err.data);
       },
       onStateChange: (event) => {
-        console.log('[Player] mudou estado:', event.data);
 
         if (event.data === window.YT.PlayerState.PLAYING) {
           setRodando(true);
