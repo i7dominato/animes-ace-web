@@ -82,14 +82,19 @@ export default function Player() {
   useEffect(() => {
   if (!episodio) return;
 
-  const videoId = 'dQw4w9WgXcQ'; // extrairVideoId(episodio.link);
+  const videoId = extrairVideoId(episodio.urlVideo);
+  console.log('videoId extraído:', videoId); // ← debug
+
   if (!videoId) return;
 
   let player;
 
   function criarPlayer() {
-    // Garante que o elemento existe antes de criar o player
-    if (!document.getElementById('yt-player')) return;
+    console.log('criarPlayer chamado'); // ← debug
+    if (!document.getElementById('yt-player')) {
+      console.log('elemento yt-player não encontrado'); // ← debug
+      return;
+    }
 
     player = new window.YT.Player('yt-player', {
       videoId,
@@ -102,12 +107,13 @@ export default function Player() {
       },
       events: {
         onReady: () => {
+          console.log('player pronto!'); // ← debug
           playerRef.current = player;
           setPlayerPronto(true);
         },
         onStateChange: (event) => {
-          if (event.data === window.YT.PlayerState.PLAYING) {
-            setRodando(true);
+          console.log('mudou estado:', event.data); // ← debug
+          // ... resto do código continua igual
             // Evita criar múltiplos intervalos
             if (intervaloRef.current) clearInterval(intervaloRef.current);
             intervaloRef.current = setInterval(async () => {
