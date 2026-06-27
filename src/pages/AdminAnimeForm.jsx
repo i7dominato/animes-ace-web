@@ -20,7 +20,9 @@ export default function AdminAnimeForm() {
     generos: [],
   });
 
-  const [episodios,       setEpisodios]       = useState([{ numero: 1, titulo: '', urlVideo: '', duracao: '' }]);
+  const [episodios, setEpisodios] = useState([{
+    numero: 1, titulo: '', urlVideo: '', urlVideoAlt: '', fontePrincipal: 'youtube', duracao: ''
+  }]);
   const [episodiosExist,  setEpisodiosExist]  = useState([]);
   const [salvando,        setSalvando]        = useState(false);
   const [carregando,      setCarregando]      = useState(editando);
@@ -72,7 +74,9 @@ export default function AdminAnimeForm() {
     const proximoNum = editando
       ? (episodiosExist.length + episodios.length + 1)
       : (episodios.length + 1);
-    setEpisodios(prev => [...prev, { numero: proximoNum, titulo: '', urlVideo: '', duracao: '' }]);
+    setEpisodios(prev => [...prev, {
+      numero: proximoNum, titulo: '', urlVideo: '', urlVideoAlt: '', fontePrincipal: 'youtube', duracao: ''
+    }]);
   }
 
   function removeEpisodio(index) {
@@ -80,7 +84,15 @@ export default function AdminAnimeForm() {
   }
 
   function handleEpisodio(index, campo, valor) {
-    setEpisodios(prev => prev.map((ep, i) => i === index ? { ...ep, [campo]: valor } : ep));
+    setEpisodios(prev => prev.map((ep, i) => {
+      if (i !== index) return ep;
+      const atualizado = { ...ep, [campo]: valor };
+      // Se removeu a URL alternativa enquanto Dailymotion estava selecionado, volta pro YouTube
+      if (campo === 'urlVideoAlt' && !valor && atualizado.fontePrincipal === 'dailymotion') {
+        atualizado.fontePrincipal = 'youtube';
+      }
+      return atualizado;
+    }));
   }
 
   async function deletarEpisodioExist(epId) {
@@ -156,10 +168,12 @@ export default function AdminAnimeForm() {
         });
         for (const ep of epParaSalvar) {
           await api.post(`/animes/${id}/episodios`, {
-            numero:   Number(ep.numero),
-            titulo:   ep.titulo,
-            urlVideo: ep.urlVideo,
-            duracao:  ep.duracao ? Number(ep.duracao) : null,
+            numero:         Number(ep.numero),
+            titulo:         ep.titulo,
+            urlVideo:       ep.urlVideo,
+            urlVideoAlt:    ep.urlVideoAlt || null,
+            fontePrincipal: ep.fontePrincipal || 'youtube',
+            duracao:        ep.duracao ? Number(ep.duracao) : null,
           });
         }
         setSucesso('Anime atualizado com sucesso!');
@@ -178,10 +192,12 @@ export default function AdminAnimeForm() {
         });
         for (const ep of episodios) {
           await api.post(`/animes/${anime.id}/episodios`, {
-            numero:   Number(ep.numero),
-            titulo:   ep.titulo,
-            urlVideo: ep.urlVideo,
-            duracao:  ep.duracao ? Number(ep.duracao) : null,
+            numero:         Number(ep.numero),
+            titulo:         ep.titulo,
+            urlVideo:       ep.urlVideo,
+            urlVideoAlt:    ep.urlVideoAlt || null,
+            fontePrincipal: ep.fontePrincipal || 'youtube',
+            duracao:        ep.duracao ? Number(ep.duracao) : null,
           });
         }
         navigate('/admin');
@@ -308,6 +324,10 @@ export default function AdminAnimeForm() {
                   <div key={ep.id} style={s.epExistItem}>
                     <span style={s.epNumLabel}>EP {ep.numero}</span>
                     <span style={s.epExistTitulo}>{ep.titulo}</span>
+                    <span style={s.epExistFonte}>
+                      {ep.fontePrincipal === 'dailymotion' ? '🔵 Dailymotion' : '🔴 YouTube'}
+                      {ep.urlVideoAlt && ' + backup'}
+                    </span>
                     <button style={s.btnRemoveEp} onClick={() => deletarEpisodioExist(ep.id)}>✕ Remover</button>
                   </div>
                 ))}
@@ -335,8 +355,26 @@ export default function AdminAnimeForm() {
                       <input style={s.input} type="number" value={ep.duracao} onChange={e => handleEpisodio(i, 'duracao', e.target.value)} placeholder="24" />
                     </Campo>
                   </div>
-                  <Campo label="URL do vídeo *">
+
+                  <Campo label="URL do vídeo (YouTube) *">
                     <input style={s.input} value={ep.urlVideo} onChange={e => handleEpisodio(i, 'urlVideo', e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                  </Campo>
+
+                  <Campo label="URL alternativa (Dailymotion) — opcional">
+                    <input style={s.input} value={ep.urlVideoAlt} onChange={e => handleEpisodio(i, 'urlVideoAlt', e.target.value)} placeholder="https://dailymotion.com/video/..." />
+                  </Campo>
+
+                  <Campo label="Fonte principal ao abrir o player">
+                    <select
+                      style={s.input}
+                      value={ep.fontePrincipal}
+                      onChange={e => handleEpisodio(i, 'fontePrincipal', e.target.value)}
+                    >
+                      <option value="youtube">YouTube</option>
+                      <option value="dailymotion" disabled={!ep.urlVideoAlt}>
+                        Dailymotion {!ep.urlVideoAlt && '(preencha a URL alternativa)'}
+                      </option>
+                    </select>
                   </Campo>
                 </div>
               ))}
@@ -435,8 +473,9 @@ const s = {
   gridDois:    { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
   generoPill:  { padding: '7px 16px', borderRadius: '999px', border: '1px solid #1e1e32', background: '#0d0d14', color: '#888', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' },
   generoPillAtivo: { background: '#e63946', borderColor: '#e63946', color: '#fff' },
-  epExistItem: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '8px', marginBottom: '8px' },
+  epExistItem: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '8px', marginBottom: '8px', flexWrap: 'wrap' },
   epExistTitulo: { flex: 1, fontSize: '0.85rem', color: '#bbb' },
+  epExistFonte: { fontSize: '0.72rem', color: '#888', fontWeight: 700, whiteSpace: 'nowrap' },
   epBlock:     { background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '10px', padding: '16px', marginBottom: '12px' },
   epHeader:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' },
   epNumLabel:  { fontFamily: '"Bebas Neue", sans-serif', fontSize: '1.1rem', color: '#e63946', letterSpacing: '1px' },
