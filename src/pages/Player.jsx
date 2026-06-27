@@ -93,71 +93,77 @@ export default function Player() {
 
     let player;
 
-    function criarPlayer() {
-      console.log('[Player] criarPlayer chamado');
-      if (!document.getElementById('yt-player')) {
-        console.log('[Player] elemento yt-player não encontrado no DOM');
-        return;
-      }
+    function criarPlayer(tentativas = 0) {
+  console.log('[Player] criarPlayer chamado, tentativa', tentativas);
 
-      player = new window.YT.Player('yt-player', {
-        videoId,
-        width:  '100%',
-        height: '100%',
-        playerVars: {
-          rel:            0,
-          modestbranding: 1,
-          start: segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
-        },
-        events: {
-          onReady: () => {
-            console.log('[Player] player pronto!');
-            playerRef.current = player;
-            setPlayerPronto(true);
-          },
-          onError: (err) => {
-            console.log('[Player] erro no player:', err.data);
-          },
-          onStateChange: (event) => {
-            console.log('[Player] mudou estado:', event.data);
+  if (!document.getElementById('yt-player')) {
+    if (tentativas < 10) {
+      console.log('[Player] elemento ainda não existe, tentando novamente em 200ms');
+      setTimeout(() => criarPlayer(tentativas + 1), 200);
+    } else {
+      console.log('[Player] elemento yt-player não encontrado após 10 tentativas');
+    }
+    return;
+  }
 
-            if (event.data === window.YT.PlayerState.PLAYING) {
-              setRodando(true);
+  player = new window.YT.Player('yt-player', {
+    videoId,
+    width:  '100%',
+    height: '100%',
+    playerVars: {
+      rel:            0,
+      modestbranding: 1,
+      start: segundosRef.current > 10 ? Math.floor(segundosRef.current) : 0,
+    },
+    events: {
+      onReady: () => {
+        console.log('[Player] player pronto!');
+        playerRef.current = player;
+        setPlayerPronto(true);
+      },
+      onError: (err) => {
+        console.log('[Player] erro no player:', err.data);
+      },
+      onStateChange: (event) => {
+        console.log('[Player] mudou estado:', event.data);
 
-              if (intervaloRef.current) clearInterval(intervaloRef.current);
-              intervaloRef.current = setInterval(async () => {
-                segundosRef.current += 1;
-                setSegundosExibidos(prev => prev + 1);
+        if (event.data === window.YT.PlayerState.PLAYING) {
+          setRodando(true);
 
-                if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
-                  try {
-                    await api.post('/progresso', {
-                      episodioId: episodioRef.current.id,
-                      animeId:    episodioRef.current.animeId,
-                      segundos:   segundosRef.current,
-                      concluido:  false,
-                    });
-                  } catch (err) {
-                    console.error('Erro ao salvar progresso:', err);
-                  }
-                }
-              }, 1000);
+          if (intervaloRef.current) clearInterval(intervaloRef.current);
+          intervaloRef.current = setInterval(async () => {
+            segundosRef.current += 1;
+            setSegundosExibidos(prev => prev + 1);
 
-            } else {
-              setRodando(false);
-              if (intervaloRef.current) {
-                clearInterval(intervaloRef.current);
-                intervaloRef.current = null;
-              }
-
-              if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
-                salvarProgresso(segundosRef.current, true);
+            if (segundosRef.current % 30 === 0 && user && episodioRef.current) {
+              try {
+                await api.post('/progresso', {
+                  episodioId: episodioRef.current.id,
+                  animeId:    episodioRef.current.animeId,
+                  segundos:   segundosRef.current,
+                  concluido:  false,
+                });
+              } catch (err) {
+                console.error('Erro ao salvar progresso:', err);
               }
             }
-          },
-        },
-      });
-    }
+          }, 1000);
+
+        } else {
+          setRodando(false);
+          if (intervaloRef.current) {
+            clearInterval(intervaloRef.current);
+            intervaloRef.current = null;
+          }
+
+          if (event.data === window.YT.PlayerState.ENDED && user && episodioRef.current) {
+            salvarProgresso(segundosRef.current, true);
+          }
+        }
+      },
+    },
+  });
+}
 
     if (window.YT && window.YT.Player) {
       console.log('[Player] API já carregada, criando player direto');
