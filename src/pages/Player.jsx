@@ -4,12 +4,25 @@ import { useWindowSize }               from '../hooks/useWindowSize';
 import { useAuth }                     from '../context/AuthContext';
 import api                             from '../services/api';
 
-function extrairVideoId(url) {
+function extrairVideoIdYoutube(url) {
   if (!url) return null;
   const regexes = [
     /youtube\.com\/watch\?v=([^&]+)/,
     /youtu\.be\/([^?]+)/,
     /youtube\.com\/embed\/([^?]+)/,
+  ];
+  for (const regex of regexes) {
+    const match = url.match(regex);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function extrairVideoIdDailymotion(url) {
+  if (!url) return null;
+  const regexes = [
+    /dailymotion\.com\/video\/([^_?]+)/,
+    /dai\.ly\/([^_?]+)/,
   ];
   for (const regex of regexes) {
     const match = url.match(regex);
@@ -40,6 +53,10 @@ export default function Player() {
   const [playerPronto,     setPlayerPronto]     = useState(false);
   const [rodando,          setRodando]          = useState(false);
 
+  // Fonte ativa no momento: 'youtube' ou 'dailymotion'
+  const [fonteAtiva,  setFonteAtiva]  = useState('youtube');
+  const [trocaAutomatica, setTrocaAutomatica] = useState(false);
+
   const playerRef    = useRef(null);
   const intervaloRef = useRef(null);
   const segundosRef  = useRef(0);
@@ -52,6 +69,9 @@ export default function Player() {
         const { data: ep } = await api.get(`/animes/0/episodios/${id}`);
         setEpisodio(ep);
         episodioRef.current = ep;
+
+        // Define a fonte inicial conforme cadastrado no admin
+        setFonteAtiva(ep.fontePrincipal === 'dailymotion' ? 'dailymotion' : 'youtube');
 
         const { data: todos } = await api.get(`/animes/${ep.animeId}/episodios`);
         const index = todos.findIndex(e => e.id === ep.id);
@@ -83,20 +103,25 @@ export default function Player() {
     };
   }, [id, user]);
 
-  // Cria o player do YouTube via IFrame API
+  // Cria o player do YouTube via IFrame API — só quando a fonte ativa é youtube
   useEffect(() => {
-    if (!episodio) return;
+    if (!episodio || fonteAtiva !== 'youtube') return;
 
-    const videoId = extrairVideoId(episodio.urlVideo);
-    if (!videoId) return;
+    const videoId = extrairVideoIdYoutube(episodio.urlVideo);
+    if (!videoId) {
+      // Não tem YouTube válido — troca pra Dailymotion automaticamente se existir
+      if (episodio.urlVideoAlt) {
+        setFonteAtiva('dailymotion');
+        setTrocaAutomatica(true);
+      }
+      return;
+    }
 
     let player;
 
     function criarPlayer(tentativas = 0) {
       if (!document.getElementById('yt-player')) {
-        if (tentativas < 10) {
-          setTimeout(() => criarPlayer(tentativas + 1), 200);
-        }
+        if (tentativas < 10) setTimeout(() => criarPlayer(tentativas + 1), 200);
         return;
       }
 
@@ -114,7 +139,13 @@ export default function Player() {
             playerRef.current = player;
             setPlayerPronto(true);
           },
-          onError: () => {},
+          // Se o YouTube der erro (vídeo removido, bloqueado, etc), troca pra Dailymotion
+          onError: () => {
+            if (episodio.urlVideoAlt) {
+              setFonteAtiva('dailymotion');
+              setTrocaAutomatica(true);
+            }
+          },
           onStateChange: (event) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
               setRodando(true);
@@ -171,11 +202,11 @@ export default function Player() {
         intervaloRef.current = null;
       }
       if (playerRef.current) {
-        playerRef.current.destroy();
+        playerRef.current.destroy?.();
         playerRef.current = null;
       }
     };
-  }, [episodio]);
+  }, [episodio, fonteAtiva]);
 
   async function salvarProgresso(segundos, concluidoVal = false) {
     if (!user || !episodioRef.current) return;
@@ -204,19 +235,82 @@ export default function Player() {
     if (proximoEp) navigate(`/assistir/${proximoEp.id}`);
   }
 
+  // Troca manual de fonte pelo botão
+  function trocarFonte(fonte) {
+    if (fonte === fonteAtiva) return;
+
+    // Para o contador do YouTube se estava rodando
+    if (intervaloRef.current) {
+      clearInterval(intervaloRef.current);
+      intervaloRef.current = null;
+    }
+    if (playerRef.current) {
+      playerRef.current.destroy?.();
+      playerRef.current = null;
+    }
+
+    setTrocaAutomatica(false);
+    setPlayerPronto(false);
+    setRodando(false);
+    setFonteAtiva(fonte);
+  }
+
   if (loading)   return <div style={s.loading}>Carregando player...</div>;
   if (!episodio) return <div style={s.loading}>Episódio não encontrado.</div>;
 
-  const duracaoTotal = (episodio.duracao ?? 24) * 60;
-  const porcentagem  = Math.min((segundosExibidos / duracaoTotal) * 100, 100);
+  const duracaoTotal     = (episodio.duracao ?? 24) * 60;
+  const porcentagem      = Math.min((segundosExibidos / duracaoTotal) * 100, 100);
+  const dailymotionId    = extrairVideoIdDailymotion(episodio.urlVideoAlt);
+  const temFonteAlt      = Boolean(episodio.urlVideoAlt);
 
   return (
     <div style={s.page}>
 
       {/* ── PLAYER ── */}
       <div style={s.playerWrap}>
-        <div id="yt-player" style={s.ytPlayer} />
+        {fonteAtiva === 'youtube' ? (
+          <div id="yt-player" style={s.ytPlayer} />
+        ) : (
+          dailymotionId ? (
+            <iframe
+              style={s.iframe}
+              src={`https://www.dailymotion.com/embed/video/${dailymotionId}`}
+              title={episodio.titulo}
+              allowFullScreen
+              allow="autoplay"
+              frameBorder="0"
+            />
+          ) : (
+            <div style={s.semVideo}>
+              <span style={{ fontSize: '3rem' }}>📺</span>
+              <p>Vídeo não disponível nessa fonte.</p>
+            </div>
+          )
+        )}
       </div>
+
+      {/* ── SELETOR DE FONTE ── */}
+      {temFonteAlt && (
+        <div style={s.fonteWrap}>
+          {trocaAutomatica && (
+            <span style={s.fonteAviso}>⚠ Trocado automaticamente — a fonte principal falhou</span>
+          )}
+          <div style={s.fonteBotoes}>
+            <button
+              style={{ ...s.fonteBtn, ...(fonteAtiva === 'youtube' ? s.fonteBtnAtivo : {}) }}
+              onClick={() => trocarFonte('youtube')}
+            >
+              ▶ YouTube
+            </button>
+            <button
+              style={{ ...s.fonteBtn, ...(fonteAtiva === 'dailymotion' ? s.fonteBtnAtivo : {}) }}
+              onClick={() => trocarFonte('dailymotion')}
+            >
+              ▶ Dailymotion
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── BARRA DE PROGRESSO ── */}
       {user && (
@@ -230,6 +324,8 @@ export default function Player() {
                 ? '✓ Episódio concluído'
                 : salvando
                 ? '💾 Salvando...'
+                : fonteAtiva === 'dailymotion'
+                ? 'Assistindo pelo Dailymotion — marque manualmente ao terminar'
                 : rodando
                 ? `⏱ ${formatarTempo(segundosExibidos)} assistidos`
                 : segundosExibidos > 0
@@ -240,7 +336,7 @@ export default function Player() {
               }
             </span>
             <div style={s.progressoAcoes}>
-              {!concluido && segundosExibidos > 0 && (
+              {!concluido && (segundosExibidos > 0 || fonteAtiva === 'dailymotion') && (
                 <button style={s.btnConcluir} onClick={marcarConcluido}>
                   {proximoEp ? '✓ Concluído → Próximo EP' : '✓ Marcar como concluído'}
                 </button>
@@ -325,6 +421,29 @@ const s = {
 
   playerWrap: { width: '100%', background: '#000', aspectRatio: '16/9', maxHeight: 'calc(100vh - 64px - 80px)' },
   ytPlayer:   { width: '100%', height: '100%' },
+  iframe:     { width: '100%', height: '100%', border: 'none', display: 'block' },
+  semVideo:   {
+    width: '100%', height: '100%',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+    gap: '12px', color: '#888', background: '#0a0a0f',
+  },
+
+  // Seletor de fonte
+  fonteWrap: { background: '#0d0d14', borderBottom: '1px solid #1e1e32', padding: '12px 40px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  fonteAviso: { fontSize: '0.78rem', color: '#f4a261', fontWeight: 700 },
+  fonteBotoes: { display: 'flex', gap: '8px' },
+  fonteBtn: {
+    background:   '#13131f',
+    border:       '1px solid #1e1e32',
+    color:        '#888',
+    padding:      '7px 16px',
+    borderRadius: '6px',
+    fontFamily:   'Nunito, sans-serif',
+    fontWeight:   700,
+    fontSize:     '0.8rem',
+    cursor:       'pointer',
+  },
+  fonteBtnAtivo: { background: 'rgba(230,57,70,0.15)', borderColor: '#e63946', color: '#e63946' },
 
   progressoWrap: { background: '#0d0d14', borderBottom: '1px solid #1e1e32', padding: '12px 40px' },
   progressoBar:  { height: '4px', background: '#1e1e32', borderRadius: '2px', marginBottom: '10px', overflow: 'hidden' },
