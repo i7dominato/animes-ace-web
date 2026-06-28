@@ -32,8 +32,9 @@ export default function AdminAnimeForm() {
   const [resultadosJikan, setResultadosJikan] = useState([]);
   const [buscando,        setBuscando]        = useState(false);
 
-  if (!isAdmin) { navigate('/'); return null; }
-
+ useEffect(() => {
+  if (!isAdmin) navigate('/');
+}, [isAdmin]);
   useEffect(() => {
     if (!editando) return;
     async function carregarAnime() {
