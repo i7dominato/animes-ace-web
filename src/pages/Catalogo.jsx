@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate }         from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowSize }       from '../hooks/useWindowSize';
 import api                     from '../services/api';
 
@@ -8,12 +8,13 @@ const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror',
 export default function Catalogo() {
   const [animes,       setAnimes]       = useState([]);
   const [loading,      setLoading]      = useState(true);
-  const [busca,        setBusca]        = useState('');
+ const [busca, setBusca] = useState(searchParams.get('busca') ?? '');
   const [generoAtivo,  setGeneroAtivo]  = useState('Todos');
   const [pagina,       setPagina]       = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const navigate     = useNavigate();
   const { isMobile } = useWindowSize();
+ const [searchParams] = useSearchParams();
 
   useEffect(() => {
     async function carregar() {
