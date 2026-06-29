@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 
 // Páginas (vamos criar em seguida)
+import NotFound from './pages/NotFound';
 import Home     from './pages/Home';
 import Catalogo from './pages/Catalogo';
 import Anime    from './pages/Anime';
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/admin"         element={<Admin />}    />
           <Route path="/admin/anime/novo" element={<AdminAnimeForm />} />
           <Route path="/admin/anime/:id/editar" element={<AdminAnimeForm />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
