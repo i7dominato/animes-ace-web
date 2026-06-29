@@ -23,18 +23,22 @@ export default function AdminAnimeForm() {
   const [episodios, setEpisodios] = useState([{
     numero: 1, titulo: '', urlVideo: '', urlVideoAlt: '', fontePrincipal: 'youtube', duracao: ''
   }]);
-  const [episodiosExist,  setEpisodiosExist]  = useState([]);
-  const [salvando,        setSalvando]        = useState(false);
-  const [carregando,      setCarregando]      = useState(editando);
-  const [erro,            setErro]            = useState('');
-  const [sucesso,         setSucesso]         = useState('');
-  const [buscaJikan,      setBuscaJikan]      = useState('');
-  const [resultadosJikan, setResultadosJikan] = useState([]);
-  const [buscando,        setBuscando]        = useState(false);
+  const [episodiosExist,   setEpisodiosExist]   = useState([]);
+  const [epEditandoId,     setEpEditandoId]      = useState(null); // ID do episódio aberto pra edição
+  const [epEditForm,       setEpEditForm]        = useState(null); // dados do formulário de edição
+  const [salvandoEpId,     setSalvandoEpId]      = useState(null);
+  const [salvando,         setSalvando]          = useState(false);
+  const [carregando,       setCarregando]        = useState(editando);
+  const [erro,             setErro]              = useState('');
+  const [sucesso,          setSucesso]           = useState('');
+  const [buscaJikan,       setBuscaJikan]        = useState('');
+  const [resultadosJikan,  setResultadosJikan]   = useState([]);
+  const [buscando,         setBuscando]          = useState(false);
 
- useEffect(() => {
-  if (!isAdmin) navigate('/');
-}, [isAdmin]);
+  useEffect(() => {
+    if (!isAdmin) navigate('/');
+  }, [isAdmin]);
+
   useEffect(() => {
     if (!editando) return;
     async function carregarAnime() {
@@ -88,7 +92,6 @@ export default function AdminAnimeForm() {
     setEpisodios(prev => prev.map((ep, i) => {
       if (i !== index) return ep;
       const atualizado = { ...ep, [campo]: valor };
-      // Se removeu a URL alternativa enquanto Dailymotion estava selecionado, volta pro YouTube
       if (campo === 'urlVideoAlt' && !valor && atualizado.fontePrincipal === 'dailymotion') {
         atualizado.fontePrincipal = 'youtube';
       }
@@ -96,16 +99,77 @@ export default function AdminAnimeForm() {
     }));
   }
 
+  // ── EDIÇÃO INLINE DE EPISÓDIO EXISTENTE ────────────────
+  function abrirEdicaoEpisodio(ep) {
+    if (epEditandoId === ep.id) {
+      // Clicou de novo no mesmo — fecha
+      setEpEditandoId(null);
+      setEpEditForm(null);
+      return;
+    }
+    setEpEditandoId(ep.id);
+    setEpEditForm({
+      numero:         ep.numero,
+      titulo:         ep.titulo,
+      descricao:      ep.descricao ?? '',
+      urlVideo:       ep.urlVideo,
+      urlVideoAlt:    ep.urlVideoAlt ?? '',
+      fontePrincipal: ep.fontePrincipal ?? 'youtube',
+      duracao:        ep.duracao ?? '',
+    });
+  }
+
+  function handleEpEditForm(campo, valor) {
+    setEpEditForm(prev => {
+      const atualizado = { ...prev, [campo]: valor };
+      if (campo === 'urlVideoAlt' && !valor && atualizado.fontePrincipal === 'dailymotion') {
+        atualizado.fontePrincipal = 'youtube';
+      }
+      return atualizado;
+    });
+  }
+
+  async function salvarEdicaoEpisodio(epId) {
+    if (!epEditForm.titulo.trim() || !epEditForm.urlVideo.trim()) {
+      setErro('Título e URL do vídeo são obrigatórios no episódio.');
+      return;
+    }
+    setSalvandoEpId(epId);
+    setErro('');
+    try {
+      const { data } = await api.put(`/animes/${id}/episodios/${epId}`, {
+        numero:         Number(epEditForm.numero),
+        titulo:         epEditForm.titulo,
+        descricao:      epEditForm.descricao || null,
+        urlVideo:       epEditForm.urlVideo,
+        urlVideoAlt:    epEditForm.urlVideoAlt || null,
+        fontePrincipal: epEditForm.fontePrincipal || 'youtube',
+        duracao:        epEditForm.duracao ? Number(epEditForm.duracao) : null,
+      });
+      // Atualiza a lista local sem precisar recarregar tudo
+      setEpisodiosExist(prev => prev.map(ep => ep.id === epId ? data : ep));
+      setEpEditandoId(null);
+      setEpEditForm(null);
+      setSucesso('Episódio atualizado!');
+    } catch (err) {
+      setErro(err.response?.data?.error ?? 'Erro ao atualizar episódio.');
+    } finally {
+      setSalvandoEpId(null);
+    }
+  }
+
   async function deletarEpisodioExist(epId) {
     if (!confirm('Remover este episódio?')) return;
     try {
       await api.delete(`/animes/${id}/episodios/${epId}`);
       setEpisodiosExist(prev => prev.filter(ep => ep.id !== epId));
+      if (epEditandoId === epId) { setEpEditandoId(null); setEpEditForm(null); }
     } catch (err) {
       setErro('Erro ao remover episódio.');
     }
   }
 
+  // ── JIKAN API ──────────────────────────────────────────
   async function buscarNoJikan() {
     if (!buscaJikan.trim()) return;
     setBuscando(true);
@@ -144,6 +208,7 @@ export default function AdminAnimeForm() {
     setBuscaJikan('');
   }
 
+  // ── SALVAR ANIME ───────────────────────────────────────
   async function salvar() {
     setErro('');
     setSucesso('');
@@ -316,20 +381,92 @@ export default function AdminAnimeForm() {
             </div>
           </div>
 
-          {/* Episódios existentes */}
+          {/* ── EPISÓDIOS EXISTENTES (com edição inline) ── */}
           {editando && episodiosExist.length > 0 && (
             <div style={s.card}>
               <div style={s.cardTitulo}>📺 Episódios cadastrados ({episodiosExist.length})</div>
               <div style={s.cardBody}>
-                {episodiosExist.map(ep => (
-                  <div key={ep.id} style={s.epExistItem}>
-                    <span style={s.epNumLabel}>EP {ep.numero}</span>
-                    <span style={s.epExistTitulo}>{ep.titulo}</span>
-                    <span style={s.epExistFonte}>
-                      {ep.fontePrincipal === 'dailymotion' ? '🔵 Dailymotion' : '🔴 YouTube'}
-                      {ep.urlVideoAlt && ' + backup'}
-                    </span>
-                    <button style={s.btnRemoveEp} onClick={() => deletarEpisodioExist(ep.id)}>✕ Remover</button>
+                {episodiosExist
+                  .sort((a, b) => a.numero - b.numero)
+                  .map(ep => (
+                  <div key={ep.id} style={s.epExistWrap}>
+                    <div
+                      style={{ ...s.epExistItem, ...(epEditandoId === ep.id ? s.epExistItemAtivo : {}) }}
+                      onClick={() => abrirEdicaoEpisodio(ep)}
+                    >
+                      <span style={s.epNumLabel}>EP {ep.numero}</span>
+                      <span style={s.epExistTitulo}>{ep.titulo}</span>
+                      <span style={s.epExistFonte}>
+                        {ep.fontePrincipal === 'dailymotion' ? '🔵 Dailymotion' : '🔴 YouTube'}
+                        {ep.urlVideoAlt && ' +backup'}
+                      </span>
+                      <span style={s.epExpandIcon}>{epEditandoId === ep.id ? '▲' : '✎ Editar'}</span>
+                      <button
+                        style={s.btnRemoveEp}
+                        onClick={(e) => { e.stopPropagation(); deletarEpisodioExist(ep.id); }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* ── FORMULÁRIO INLINE DE EDIÇÃO ── */}
+                    {epEditandoId === ep.id && epEditForm && (
+                      <div style={s.epEditBox}>
+                        <div style={s.gridDois}>
+                          <Campo label="Número">
+                            <input style={s.input} type="number" value={epEditForm.numero} onChange={e => handleEpEditForm('numero', e.target.value)} />
+                          </Campo>
+                          <Campo label="Duração (min)">
+                            <input style={s.input} type="number" value={epEditForm.duracao} onChange={e => handleEpEditForm('duracao', e.target.value)} placeholder="24" />
+                          </Campo>
+                        </div>
+
+                        <Campo label="Título *">
+                          <input style={s.input} value={epEditForm.titulo} onChange={e => handleEpEditForm('titulo', e.target.value)} />
+                        </Campo>
+
+                        <Campo label="Descrição">
+                          <textarea style={{ ...s.input, resize: 'vertical' }} rows={2} value={epEditForm.descricao} onChange={e => handleEpEditForm('descricao', e.target.value)} placeholder="Descrição do episódio (opcional)" />
+                        </Campo>
+
+                        <Campo label="URL do vídeo (YouTube) *">
+                          <input style={s.input} value={epEditForm.urlVideo} onChange={e => handleEpEditForm('urlVideo', e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+                        </Campo>
+
+                        <Campo label="URL alternativa (Dailymotion) — opcional">
+                          <input style={s.input} value={epEditForm.urlVideoAlt} onChange={e => handleEpEditForm('urlVideoAlt', e.target.value)} placeholder="https://dailymotion.com/video/..." />
+                        </Campo>
+
+                        <Campo label="Fonte principal">
+                          <select
+                            style={s.input}
+                            value={epEditForm.fontePrincipal}
+                            onChange={e => handleEpEditForm('fontePrincipal', e.target.value)}
+                          >
+                            <option value="youtube">YouTube</option>
+                            <option value="dailymotion" disabled={!epEditForm.urlVideoAlt}>
+                              Dailymotion {!epEditForm.urlVideoAlt && '(preencha a URL alternativa)'}
+                            </option>
+                          </select>
+                        </Campo>
+
+                        <div style={s.epEditAcoes}>
+                          <button
+                            style={{ ...s.btnSalvarEp, opacity: salvandoEpId === ep.id ? 0.6 : 1 }}
+                            onClick={() => salvarEdicaoEpisodio(ep.id)}
+                            disabled={salvandoEpId === ep.id}
+                          >
+                            {salvandoEpId === ep.id ? 'Salvando...' : '💾 Salvar episódio'}
+                          </button>
+                          <button
+                            style={s.btnCancelarEp}
+                            onClick={() => { setEpEditandoId(null); setEpEditForm(null); }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -356,15 +493,12 @@ export default function AdminAnimeForm() {
                       <input style={s.input} type="number" value={ep.duracao} onChange={e => handleEpisodio(i, 'duracao', e.target.value)} placeholder="24" />
                     </Campo>
                   </div>
-
                   <Campo label="URL do vídeo (YouTube) *">
                     <input style={s.input} value={ep.urlVideo} onChange={e => handleEpisodio(i, 'urlVideo', e.target.value)} placeholder="https://youtube.com/watch?v=..." />
                   </Campo>
-
                   <Campo label="URL alternativa (Dailymotion) — opcional">
                     <input style={s.input} value={ep.urlVideoAlt} onChange={e => handleEpisodio(i, 'urlVideoAlt', e.target.value)} placeholder="https://dailymotion.com/video/..." />
                   </Campo>
-
                   <Campo label="Fonte principal ao abrir o player">
                     <select
                       style={s.input}
@@ -474,14 +608,40 @@ const s = {
   gridDois:    { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
   generoPill:  { padding: '7px 16px', borderRadius: '999px', border: '1px solid #1e1e32', background: '#0d0d14', color: '#888', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' },
   generoPillAtivo: { background: '#e63946', borderColor: '#e63946', color: '#fff' },
-  epExistItem: { display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '8px', marginBottom: '8px', flexWrap: 'wrap' },
-  epExistTitulo: { flex: 1, fontSize: '0.85rem', color: '#bbb' },
-  epExistFonte: { fontSize: '0.72rem', color: '#888', fontWeight: 700, whiteSpace: 'nowrap' },
+
+  // Episódios existentes
+  epExistWrap: { marginBottom: '10px' },
+  epExistItem: {
+    display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
+    background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '8px',
+    flexWrap: 'wrap', cursor: 'pointer', transition: 'border-color 0.2s',
+  },
+  epExistItemAtivo: { borderColor: '#e63946', background: 'rgba(230,57,70,0.06)' },
+  epExistTitulo:    { flex: 1, fontSize: '0.85rem', color: '#bbb', minWidth: '100px' },
+  epExistFonte:     { fontSize: '0.7rem', color: '#888', fontWeight: 700, whiteSpace: 'nowrap' },
+  epExpandIcon:     { fontSize: '0.72rem', color: '#e63946', fontWeight: 800, whiteSpace: 'nowrap' },
+
+  // Caixa de edição inline
+  epEditBox: {
+    background: '#0a0a10', border: '1px solid #e63946', borderTop: 'none',
+    borderRadius: '0 0 8px 8px', padding: '16px', marginTop: '-1px',
+  },
+  epEditAcoes: { display: 'flex', gap: '10px', marginTop: '6px' },
+  btnSalvarEp: {
+    background: '#52b788', color: '#fff', border: 'none', padding: '9px 18px',
+    borderRadius: '6px', fontFamily: 'inherit', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer',
+  },
+  btnCancelarEp: {
+    background: 'transparent', border: '1px solid #1e1e32', color: '#888', padding: '9px 18px',
+    borderRadius: '6px', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer',
+  },
+
   epBlock:     { background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '10px', padding: '16px', marginBottom: '12px' },
   epHeader:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' },
   epNumLabel:  { fontFamily: '"Bebas Neue", sans-serif', fontSize: '1.1rem', color: '#e63946', letterSpacing: '1px' },
   btnRemoveEp: { background: 'transparent', border: '1px solid rgba(230,57,70,0.3)', color: '#e63946', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 700, padding: '3px 10px', borderRadius: '6px' },
   btnAddEp:    { width: '100%', background: 'transparent', border: '1px dashed #1e1e32', color: '#888', padding: '12px', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' },
+
   resumo:      { marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' },
   resumoItem:  { display: 'flex', flexDirection: 'column', gap: '2px' },
   resumoLabel: { fontSize: '0.7rem', fontWeight: 900, color: '#888', letterSpacing: '1px', textTransform: 'uppercase' },
@@ -489,6 +649,7 @@ const s = {
   btnSalvar:   { width: '100%', background: '#e63946', color: '#fff', border: 'none', padding: '13px', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 800, fontSize: '0.92rem', cursor: 'pointer', marginBottom: '10px' },
   btnVerAnime: { width: '100%', background: 'rgba(76,201,240,0.1)', border: '1px solid rgba(76,201,240,0.3)', color: '#4cc9f0', padding: '11px', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', marginBottom: '10px' },
   btnCancelar: { width: '100%', background: 'transparent', border: '1px solid #1e1e32', color: '#888', padding: '11px', borderRadius: '8px', fontFamily: 'inherit', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' },
+
   jikanResultados: { display: 'flex', flexDirection: 'column', gap: '8px' },
   jikanItem:   { display: 'flex', alignItems: 'center', gap: '14px', padding: '12px', background: '#0d0d14', border: '1px solid #1e1e32', borderRadius: '10px', cursor: 'pointer' },
   jikanCapa:   { width: '48px', height: '64px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 },
