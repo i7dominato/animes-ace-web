@@ -6,6 +6,7 @@ import api                     from '../services/api';
 const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror', 'Fantasia', 'Esportes', 'Sci-Fi', 'Mistério'];
 
 export default function Catalogo() {
+  const [searchParams] = useSearchParams();
   const [animes,       setAnimes]       = useState([]);
   const [loading,      setLoading]      = useState(true);
  const [busca, setBusca] = useState(searchParams.get('busca') ?? '');
@@ -14,7 +15,7 @@ export default function Catalogo() {
   const [totalPaginas, setTotalPaginas] = useState(1);
   const navigate     = useNavigate();
   const { isMobile } = useWindowSize();
- const [searchParams] = useSearchParams();
+ 
 
   useEffect(() => {
     async function carregar() {
