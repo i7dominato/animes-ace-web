@@ -16,7 +16,6 @@ export default function Login() {
     e.preventDefault();
     setErro('');
     setLoading(true);
-
     try {
       const { data } = await api.post('/auth/login', { email, senha });
       salvarSessao(data.user, data.token);
@@ -30,19 +29,17 @@ export default function Login() {
 
   return (
     <div style={s.page}>
-      <div style={s.box}>
+      <div style={s.bgGlow} />
 
-        {/* Logo */}
+      <div style={s.box}>
         <div style={s.logo}>
           Animes <span style={s.logoSpan}>Ace</span>
         </div>
         <p style={s.subtitulo}>Entre na sua conta</p>
 
-        {/* Mensagem de erro */}
         {erro && <div style={s.erro}>{erro}</div>}
 
-        {/* Formulário */}
-        <div style={s.form}>
+        <form onSubmit={handleSubmit} style={s.form}>
           <div style={s.campo}>
             <label style={s.label}>Email</label>
             <input
@@ -66,20 +63,18 @@ export default function Login() {
           </div>
 
           <button
+            type="submit"
             style={{ ...s.btnPrimario, opacity: loading ? 0.6 : 1 }}
-            onClick={handleSubmit}
             disabled={loading}
           >
-            {loading ? 'Entrando...' : 'Entrar'}
+            {loading ? 'Entrando...' : '▶ Entrar'}
           </button>
-        </div>
+        </form>
 
-        {/* Link para cadastro */}
         <p style={s.rodape}>
           Não tem conta?{' '}
           <Link to="/registro" style={s.rodapeLink}>Cadastre-se</Link>
         </p>
-
       </div>
     </div>
   );
@@ -87,66 +82,36 @@ export default function Login() {
 
 const s = {
   page: {
-    minHeight:      '100vh',
-    display:        'flex',
-    alignItems:     'center',
-    justifyContent: 'center',
-    padding:        '80px 20px',
-    background:     'radial-gradient(ellipse at 50% 0%, #1a0520 0%, #0d0d14 60%)',
+    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: '90px 20px 40px', background: '#0a0a0f', position: 'relative', overflow: 'hidden',
+  },
+  bgGlow: {
+    position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)',
+    width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(230,57,70,0.1) 0%, transparent 70%)', zIndex: 0,
   },
   box: {
-    width:        '100%',
-    maxWidth:     '420px',
-    background:   '#13131f',
-    border:       '1px solid #1e1e32',
-    borderRadius: '16px',
-    padding:      '40px',
+    position: 'relative', zIndex: 1, width: '100%', maxWidth: '420px',
+    background: '#13131f', border: '1px solid #1e1e32', borderRadius: '16px', padding: '40px',
   },
-  logo: {
-    fontFamily:    '"Bebas Neue", sans-serif',
-    fontSize:      '2rem',
-    letterSpacing: '2px',
-    textAlign:     'center',
-    marginBottom:  '6px',
-  },
+  logo: { fontFamily: '"Bebas Neue", sans-serif', fontSize: '2rem', letterSpacing: '2px', textAlign: 'center', marginBottom: '6px', color: '#fff' },
   logoSpan:  { color: '#e63946' },
   subtitulo: { color: '#888', fontSize: '0.9rem', textAlign: 'center', marginBottom: '28px' },
 
   erro: {
-    background:   'rgba(230,57,70,0.12)',
-    border:       '1px solid rgba(230,57,70,0.3)',
-    color:        '#e63946',
-    padding:      '12px 16px',
-    borderRadius: '8px',
-    fontSize:     '0.85rem',
-    marginBottom: '20px',
+    background: 'rgba(230,57,70,0.12)', border: '1px solid rgba(230,57,70,0.3)', color: '#e63946',
+    padding: '12px 16px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '20px',
   },
 
   form:  { display: 'flex', flexDirection: 'column', gap: '18px' },
   campo: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  label: { fontSize: '0.82rem', fontWeight: 800, color: '#888', letterSpacing: '0.5px' },
+  label: { fontSize: '0.78rem', fontWeight: 800, color: '#888', letterSpacing: '0.5px' },
   input: {
-    background:   '#0d0d14',
-    border:       '1px solid #1e1e32',
-    borderRadius: '8px',
-    color:        '#f0f0f0',
-    padding:      '12px 16px',
-    fontSize:     '0.92rem',
-    fontFamily:   'inherit',
-    outline:      'none',
-    transition:   'border-color 0.2s',
+    background: '#0a0a10', border: '1px solid #1e1e32', borderRadius: '8px', color: '#f0f0f0',
+    padding: '12px 16px', fontSize: '0.92rem', fontFamily: 'inherit', outline: 'none',
   },
   btnPrimario: {
-    background:   '#e63946',
-    color:        '#fff',
-    border:       'none',
-    padding:      '14px',
-    borderRadius: '8px',
-    fontFamily:   'inherit',
-    fontWeight:   800,
-    fontSize:     '0.95rem',
-    cursor:       'pointer',
-    marginTop:    '4px',
+    background: '#e63946', color: '#fff', border: 'none', padding: '14px', borderRadius: '8px',
+    fontFamily: 'inherit', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', marginTop: '4px',
   },
   rodape:     { textAlign: 'center', color: '#888', fontSize: '0.85rem', marginTop: '24px' },
   rodapeLink: { color: '#e63946', fontWeight: 800 },
