@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowSize }       from '../hooks/useWindowSize';
+import { useSEO } from '../hooks/useSEO';
 import api                     from '../services/api';
 
 const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror', 'Fantasia', 'Esportes', 'Sci-Fi', 'Mistério'];
@@ -15,7 +16,8 @@ export default function Catalogo() {
   const [totalPaginas, setTotalPaginas] = useState(1);
   const navigate     = useNavigate();
   const { isMobile } = useWindowSize();
- 
+
+ useSEO({ titulo: 'Catálogo', descricao: 'Explore todo o acervo de animes disponíveis no Animes Ace.' });
 
   useEffect(() => {
     async function carregar() {

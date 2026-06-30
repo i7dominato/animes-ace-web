@@ -1,6 +1,7 @@
 import { useState }          from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth }           from '../context/AuthContext';
+import { useSEO } from '../hooks/useSEO';
 import api                   from '../services/api';
 
 export default function Registro() {
@@ -13,6 +14,8 @@ export default function Registro() {
 
   const { salvarSessao } = useAuth();
   const navigate         = useNavigate();
+
+  useSEO({ titulo: 'Cadastrar', descricao: 'Crie sua conta grátis no Animes Ace.' });
 
   async function handleSubmit(e) {
     e.preventDefault();

@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useWindowSize } from '../hooks/useWindowSize';
+import { useSEO } from '../hooks/useSEO';
 
 export default function NotFound() {
   const navigate     = useNavigate();
   const { isMobile } = useWindowSize();
+
+  useSEO({ titulo: '404 — Página não encontrada' });
 
   return (
     <div style={s.page}>

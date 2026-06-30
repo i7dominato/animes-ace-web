@@ -2,6 +2,7 @@ import { useEffect, useState }        from 'react';
 import { useParams, useNavigate }     from 'react-router-dom';
 import { useAuth }                    from '../context/AuthContext';
 import { useWindowSize }              from '../hooks/useWindowSize';
+import { useSEO } from '../hooks/useSEO';
 import api                            from '../services/api';
 
 export default function Anime() {
@@ -37,6 +38,12 @@ export default function Anime() {
     carregar();
   }, [id, user]);
 
+     // dentro do componente (após o loading):
+  useSEO({
+  titulo:    anime?.titulo,
+  descricao: anime?.sinopse?.slice(0, 160),
+  imagem:    anime?.capa,
+});
   async function toggleLista() {
     if (!user) { navigate('/login'); return; }
     try {

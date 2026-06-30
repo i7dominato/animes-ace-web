@@ -1,6 +1,7 @@
 import { useState }          from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth }           from '../context/AuthContext';
+import { useSEO } from '../hooks/useSEO';
 import api                   from '../services/api';
 
 export default function Login() {
@@ -11,6 +12,8 @@ export default function Login() {
 
   const { salvarSessao } = useAuth();
   const navigate         = useNavigate();
+
+  useSEO({ titulo: 'Entrar', descricao: 'Faça login na sua conta do Animes Ace.' });
 
   async function handleSubmit(e) {
     e.preventDefault();

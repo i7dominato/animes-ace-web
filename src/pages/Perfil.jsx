@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
 import { useAuth }             from '../context/AuthContext';
 import { useWindowSize }       from '../hooks/useWindowSize';
+import { useSEO } from '../hooks/useSEO';
+
 import api                     from '../services/api';
 
 const STATUS_LABEL = { assistindo: 'Assistindo', quero_ver: 'Quero ver', concluido: 'Concluído' };
@@ -17,6 +19,8 @@ export default function Perfil() {
   const [abaAtiva,    setAbaAtiva]    = useState('todos');
   const [loading,     setLoading]     = useState(true);
 
+  useSEO({ titulo: 'Meu Perfil' });
+ 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
     async function carregar() {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate }         from 'react-router-dom';
 import { useWindowSize }       from '../hooks/useWindowSize';
+import { useSEO } from '../hooks/useSEO';
 import { useAuth }             from '../context/AuthContext';
 import api                     from '../services/api';
 
@@ -12,6 +13,8 @@ export default function Home() {
   const navigate     = useNavigate();
   const { isMobile } = useWindowSize();
   const { user }     = useAuth();
+
+  useSEO({});
 
   useEffect(() => {
     async function carregar() {
