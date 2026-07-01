@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowSize }       from '../hooks/useWindowSize';
 import { useSEO } from '../hooks/useSEO';
 import api                     from '../services/api';
+import { SkeletonCard } from '../components/Skeleton';
 
 const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror', 'Fantasia', 'Esportes', 'Sci-Fi', 'Mistério'];
 
@@ -89,8 +90,15 @@ export default function Catalogo() {
 
       {/* ── GRID ── */}
       {loading ? (
-        <div style={s.loading}>Carregando catálogo...</div>
-      ) : animes.length === 0 ? (
+  <div style={{
+    display: 'grid',
+    gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))',
+    gap:     isMobile ? '10px' : '18px',
+    padding: isMobile ? '0 20px 48px' : '0 56px 56px',
+  }}>
+    {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+  </div>
+) : animes.length === 0 ? (
         <div style={{ ...s.vazio, margin: isMobile ? '0 20px' : '0 56px' }}>
           <p style={{ fontSize: '1.8rem' }}>🎬</p>
           <p style={{ marginTop: '10px' }}>Nenhum anime encontrado.</p>
