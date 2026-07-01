@@ -4,6 +4,7 @@ import { useWindowSize }               from '../hooks/useWindowSize';
 import { useAuth }                     from '../context/AuthContext';
 import api                             from '../services/api';
 import { useSEO }                      from '../hooks/useSEO';
+import { SkeletonPlayer } from '../components/Skeleton';
 
 function extrairVideoIdYoutube(url) {
   if (!url) return null;
@@ -237,7 +238,7 @@ export default function Player() {
     } catch (err) { console.error(err); }
   }
 
-  if (loading)   return <div style={s.loading}>Carregando player...</div>;
+  if (loading)   return <SkeletonPlayer isMobile={isMobile} />;
   if (!episodio) return <div style={s.loading}>Episódio não encontrado.</div>;
 
   const duracaoTotal  = (episodio.duracao ?? 24) * 60;

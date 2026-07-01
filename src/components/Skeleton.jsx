@@ -1,150 +1,146 @@
-// Componente base — bloco cinza animado que simula o conteúdo carregando
-export function Skeleton({ width = '100%', height = '16px', borderRadius = '6px', style = {} }) {
+// Componente base de skeleton — um bloco cinza com animação de pulso
+export function Skeleton({ width = '100%', height = '16px', radius = '6px', style = {} }) {
   return (
-    <div style={{
-      width,
-      height,
-      borderRadius,
-      background:  'linear-gradient(90deg, #13131f 25%, #1a1a2e 50%, #13131f 75%)',
-      backgroundSize: '200% 100%',
-      animation:   'shimmer 1.4s infinite',
-      ...style,
-    }} />
+    <div
+      className="skeleton-pulse"
+      style={{
+        width, height, borderRadius: radius,
+        background: 'linear-gradient(90deg, #13131f 25%, #1c1c2e 50%, #13131f 75%)',
+        backgroundSize: '200% 100%',
+        ...style,
+      }}
+    />
   );
 }
 
-// Injeta a animação CSS globalmente uma vez
-if (typeof document !== 'undefined') {
-  const id = 'skeleton-style';
-  if (!document.getElementById(id)) {
-    const style = document.createElement('style');
-    style.id    = id;
-    style.textContent = `
-      @keyframes shimmer {
-        0%   { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-}
-
-// ── Skeleton de card de anime (proporção 2:3) ──────────
-export function SkeletonCard() {
+// ── SKELETON: Card de anime (grid da Home/Catálogo) ────
+export function SkeletonAnimeCard() {
   return (
-    <div style={{ cursor: 'default' }}>
-      <div style={{ aspectRatio: '2/3', borderRadius: '8px', overflow: 'hidden', border: '1px solid #1e1e32' }}>
-        <Skeleton height="100%" borderRadius="0" />
-      </div>
-      <div style={{ padding: '8px 2px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        <Skeleton height="12px" width="85%" />
-        <Skeleton height="10px" width="55%" />
+    <div>
+      <Skeleton height="0" style={{ paddingBottom: '150%', borderRadius: '8px' }} />
+      <div style={{ padding: '8px 2px 0' }}>
+        <Skeleton height="12px" width="90%" style={{ marginBottom: '6px' }} />
+        <Skeleton height="10px" width="60%" />
       </div>
     </div>
   );
 }
 
-// ── Skeleton de hero ───────────────────────────────────
+// ── SKELETON: Grid de cards (várias colunas) ───────────
+export function SkeletonGrid({ colunas = 6, linhas = 2, gap = '18px' }) {
+  const total = colunas * linhas;
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${colunas}, 1fr)`, gap }}>
+      {Array.from({ length: total }).map((_, i) => <SkeletonAnimeCard key={i} />)}
+    </div>
+  );
+}
+
+// ── SKELETON: Hero da Home ──────────────────────────────
 export function SkeletonHero({ isMobile }) {
   return (
     <div style={{
-      height:     isMobile ? '56vh' : '82vh',
+      height: isMobile ? '56vh' : '82vh',
       background: '#0d0d14',
-      display:    'flex',
+      display: 'flex',
       alignItems: 'flex-end',
-      padding:    isMobile ? '0 20px 36px' : '0 60px 56px',
+      padding: isMobile ? '0 20px 36px' : '0 60px 56px',
     }}>
-      <div style={{ maxWidth: '520px', width: '100%', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <Skeleton height="20px" width="140px" borderRadius="999px" />
-        <Skeleton height={isMobile ? '48px' : '72px'} width="90%" />
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <Skeleton height="28px" width="64px" borderRadius="6px" />
-          <Skeleton height="28px" width="48px" borderRadius="6px" />
-          <Skeleton height="28px" width="80px" borderRadius="6px" />
-        </div>
-        <Skeleton height="14px" width="100%" />
-        <Skeleton height="14px" width="80%" />
-        <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
-          <Skeleton height="48px" width="140px" borderRadius="8px" />
-          <Skeleton height="48px" width="160px" borderRadius="8px" />
+      <div style={{ maxWidth: '680px', width: '100%' }}>
+        <Skeleton width="140px" height="22px" radius="999px" style={{ marginBottom: '16px' }} />
+        <Skeleton width="70%" height={isMobile ? '2.4rem' : '4rem'} style={{ marginBottom: '16px' }} />
+        <Skeleton width="50%" height="24px" style={{ marginBottom: '20px' }} />
+        {!isMobile && (
+          <>
+            <Skeleton width="90%" height="14px" style={{ marginBottom: '8px' }} />
+            <Skeleton width="70%" height="14px" style={{ marginBottom: '26px' }} />
+          </>
+        )}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <Skeleton width="140px" height="48px" radius="8px" />
+          <Skeleton width="180px" height="48px" radius="8px" />
         </div>
       </div>
     </div>
   );
 }
 
-// ── Skeleton de página de anime (hero com capa lateral) ─
-export function SkeletonAnimeHero({ isMobile }) {
+// ── SKELETON: Página do Anime (hero + episódios) ───────
+export function SkeletonAnimePage({ isMobile }) {
   return (
-    <div style={{
-      minHeight:  isMobile ? 'auto' : '64vh',
-      background: '#0d0d14',
-      display:    'flex',
-      alignItems: 'flex-end',
-      padding:    isMobile ? '24px 20px' : '0 56px 44px',
-    }}>
+    <div style={{ paddingTop: '64px' }}>
       <div style={{
-        display:       'flex',
+        display: 'flex',
         flexDirection: isMobile ? 'column' : 'row',
-        gap:           isMobile ? '18px' : '32px',
-        maxWidth:      '900px',
-        width:         '100%',
+        gap: isMobile ? '18px' : '32px',
+        padding: isMobile ? '24px 20px' : '48px 56px',
+        background: '#0d0d14',
       }}>
-        <Skeleton
-          width={isMobile ? '128px' : '190px'}
-          height={isMobile ? '192px' : '285px'}
-          borderRadius="10px"
-        />
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: isMobile ? '0' : '40px' }}>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Skeleton height="24px" width="60px" borderRadius="999px" />
-            <Skeleton height="24px" width="72px" borderRadius="999px" />
+        <Skeleton width={isMobile ? '128px' : '190px'} height="0" style={{ paddingBottom: isMobile ? '192px' : '285px', borderRadius: '10px', flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '14px' }}>
+            <Skeleton width="60px" height="22px" radius="999px" />
+            <Skeleton width="80px" height="22px" radius="999px" />
           </div>
-          <Skeleton height="52px" width="75%" />
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Skeleton height="26px" width="52px" borderRadius="6px" />
-            <Skeleton height="26px" width="44px" borderRadius="6px" />
-            <Skeleton height="26px" width="90px" borderRadius="6px" />
+          <Skeleton width="80%" height={isMobile ? '1.8rem' : '2.8rem'} style={{ marginBottom: '14px' }} />
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
+            <Skeleton width="60px" height="24px" radius="6px" />
+            <Skeleton width="50px" height="24px" radius="6px" />
+            <Skeleton width="90px" height="24px" radius="6px" />
           </div>
-          <Skeleton height="14px" width="100%" />
-          <Skeleton height="14px" width="90%" />
-          <Skeleton height="14px" width="70%" />
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-            <Skeleton height="44px" width="140px" borderRadius="8px" />
-            <Skeleton height="44px" width="130px" borderRadius="8px" />
+          {!isMobile && <Skeleton width="90%" height="60px" style={{ marginBottom: '20px' }} />}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Skeleton width="150px" height="46px" radius="8px" />
+            <Skeleton width="130px" height="46px" radius="8px" />
           </div>
+        </div>
+      </div>
+
+      <div style={{ padding: isMobile ? '20px' : '22px 56px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px' }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', gap: '12px', background: '#13131f', borderRadius: '10px', padding: '0', overflow: 'hidden' }}>
+              <Skeleton width="110px" height="0" style={{ paddingBottom: '62px', borderRadius: 0, flexShrink: 0 }} />
+              <div style={{ padding: '10px 10px 10px 0', flex: 1 }}>
+                <Skeleton width="80%" height="12px" style={{ marginBottom: '8px' }} />
+                <Skeleton width="40%" height="10px" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 }
 
-// ── Skeleton de item de episódio ───────────────────────
-export function SkeletonEpisodio() {
+// ── SKELETON: Player (barra + info) ────────────────────
+export function SkeletonPlayer({ isMobile }) {
   return (
-    <div style={{ display: 'flex', gap: '12px', background: '#13131f', border: '1px solid #1e1e32', borderRadius: '10px', overflow: 'hidden' }}>
-      <Skeleton width="110px" height="62px" borderRadius="0" />
-      <div style={{ flex: 1, padding: '10px 10px 10px 0', display: 'flex', flexDirection: 'column', gap: '8px', justifyContent: 'center' }}>
-        <Skeleton height="13px" width="70%" />
-        <Skeleton height="11px" width="40%" />
+    <div style={{ paddingTop: '64px' }}>
+      <Skeleton height="0" style={{ paddingBottom: '56.25%', borderRadius: 0 }} />
+      <div style={{ padding: isMobile ? '20px' : '28px 40px' }}>
+        <Skeleton width="200px" height="12px" style={{ marginBottom: '14px' }} />
+        <Skeleton width="60%" height="1.8rem" style={{ marginBottom: '12px' }} />
+        <Skeleton width="30%" height="14px" />
       </div>
     </div>
   );
 }
 
-// ── Skeleton de comentário ─────────────────────────────
-export function SkeletonComentario() {
+// ── SKELETON: Lista de comentários ─────────────────────
+export function SkeletonComentarios() {
   return (
-    <div style={{ display: 'flex', gap: '12px', paddingBottom: '20px', marginBottom: '20px', borderBottom: '1px solid #1e1e32' }}>
-      <Skeleton width="36px" height="36px" borderRadius="50%" style={{ flexShrink: 0 }} />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <Skeleton height="13px" width="100px" />
-          <Skeleton height="11px" width="70px" />
+    <div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+          <Skeleton width="36px" height="36px" radius="50%" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <Skeleton width="120px" height="12px" style={{ marginBottom: '8px' }} />
+            <Skeleton width="90%" height="12px" style={{ marginBottom: '4px' }} />
+            <Skeleton width="60%" height="12px" />
+          </div>
         </div>
-        <Skeleton height="13px" width="100%" />
-        <Skeleton height="13px" width="80%" />
-      </div>
+      ))}
     </div>
   );
 }
