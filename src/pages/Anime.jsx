@@ -4,7 +4,7 @@ import { useAuth }                    from '../context/AuthContext';
 import { useWindowSize }              from '../hooks/useWindowSize';
 import { useSEO } from '../hooks/useSEO';
 import api                            from '../services/api';
-import { SkeletonAnimeHero, SkeletonEpisodio } from '../components/Skeleton';
+import { SkeletonAnimePage } from '../components/Skeleton';
 
 export default function Anime() {
   const { id }     = useParams();
@@ -73,16 +73,13 @@ export default function Anime() {
     finally { setEnviando(false); }
   }
 
-  if (loading) return (
-  <div style={s.page}>
-    <SkeletonAnimeHero isMobile={isMobile} />
-    <div style={{ padding: isMobile ? '16px 20px 48px' : '22px 56px 56px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px' }}>
-        {Array.from({ length: 4 }).map((_, i) => <SkeletonEpisodio key={i} />)}
-      </div>
+  if (loading) {
+  return (
+    <div style={s.page}>
+      <SkeletonAnimePage isMobile={isMobile} />
     </div>
-  </div>
-);
+  );
+}
   if (!anime)  return <div style={s.loading}>Anime não encontrado.</div>;
 
   return (

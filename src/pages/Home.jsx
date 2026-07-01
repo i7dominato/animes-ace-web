@@ -4,7 +4,7 @@ import { useWindowSize }       from '../hooks/useWindowSize';
 import { useSEO } from '../hooks/useSEO';
 import { useAuth }             from '../context/AuthContext';
 import api                     from '../services/api';
-import { SkeletonHero, SkeletonCard } from '../components/Skeleton';
+import { SkeletonHero, SkeletonAnimeCard } from '../components/Skeleton';
 
 export default function Home() {
   const [animes,      setAnimes]      = useState([]);
@@ -54,7 +54,7 @@ export default function Home() {
         <div style={{ width: '160px', height: '22px', background: '#13131f', borderRadius: '6px' }} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(auto-fill, minmax(150px, 1fr))', gap: isMobile ? '10px' : '18px' }}>
-        {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        {Array.from({ length: 6 }).map((_, i) => <SkeletonAnimeCard key={i} isMobile={isMobile} />)}
       </div>
     </section>
   </div>

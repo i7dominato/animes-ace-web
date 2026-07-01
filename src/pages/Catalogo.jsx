@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useWindowSize }       from '../hooks/useWindowSize';
 import { useSEO } from '../hooks/useSEO';
 import api                     from '../services/api';
-import { SkeletonCard } from '../components/Skeleton';
+import { SkeletonAnimeCard } from '../components/Skeleton';
 
 const GENEROS = ['Todos', 'Ação', 'Aventura', 'Romance', 'Comédia', 'Terror', 'Fantasia', 'Esportes', 'Sci-Fi', 'Mistério'];
 
@@ -96,7 +96,8 @@ export default function Catalogo() {
     gap:     isMobile ? '10px' : '18px',
     padding: isMobile ? '0 20px 48px' : '0 56px 56px',
   }}>
-    {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+    {Array.from({ length: 12 }).map((_, i) => <SkeletonAnimeCard key={i} isMobile={isMobile} />)}
+    
   </div>
 ) : animes.length === 0 ? (
         <div style={{ ...s.vazio, margin: isMobile ? '0 20px' : '0 56px' }}>
